@@ -23,26 +23,64 @@ TOKEN_FILE = BASE_DIR / "token.json"
 IMPORTS_DIR = BASE_DIR / "imports"
 
 
-def _get_gmail_service():
-    """Authenticate and return a Gmail API service."""
-    creds = None
+def _load_token_from_secrets():
+    """Try to load token JSON from Streamlit secrets (for cloud deployment)."""
+    try:
+        import streamlit as st
+        if "gmail_token" in st.secrets:
+            return json.loads(st.secrets["gmail_token"])
+    except Exception:
+        pass
+    return None
 
-    # Load saved token
-    if TOKEN_FILE.exists():
+
+def _save_token(creds):
+    """Save token to local file (only when running locally — cloud is read-only)."""
+    try:
+        with open(TOKEN_FILE, "w") as f:
+            f.write(creds.to_json())
+    except Exception:
+        # On cloud (read-only filesystem), token persists via st.secrets only
+        pass
+
+
+def _get_gmail_service():
+    """Authenticate and return a Gmail API service.
+    Tries (in order):
+      1. Streamlit secrets (cloud deployment)
+      2. Local token.json file
+      3. Fresh OAuth flow (only works locally)
+    """
+    creds = None
+    token_data = _load_token_from_secrets()
+
+    if token_data:
+        creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+    elif TOKEN_FILE.exists():
         creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
 
-    # Refresh or re-auth
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+                _save_token(creds)
+            except Exception as e:
+                raise RuntimeError(
+                    "Gmail token expired and refresh failed. "
+                    "Re-authenticate locally and update Streamlit secret 'gmail_token'. "
+                    "Error: {}".format(e)
+                )
+        elif CREDS_FILE.exists():
             flow = InstalledAppFlow.from_client_secrets_file(
                 str(CREDS_FILE), SCOPES
             )
             creds = flow.run_local_server(port=0)
-        # Save token for future use
-        with open(TOKEN_FILE, "w") as f:
-            f.write(creds.to_json())
+            _save_token(creds)
+        else:
+            raise RuntimeError(
+                "No Gmail credentials available. "
+                "Set 'gmail_token' in Streamlit secrets, or place credentials.json locally."
+            )
 
     return build("gmail", "v1", credentials=creds)
 

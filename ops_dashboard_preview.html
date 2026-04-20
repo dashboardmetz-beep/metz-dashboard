@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alma Dining — Operations Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #ffffff;
+    --bg2:       #f5f4f0;
+    --bg3:       #eceae3;
+    --text:      #1a1a18;
+    --text2:     #6b6a64;
+    --text3:     #9c9a92;
+    --border:    rgba(0,0,0,0.10);
+    --border2:   rgba(0,0,0,0.18);
+    --green:     #639922;
+    --green-bg:  #eaf3de;
+    --green-txt: #27500a;
+    --amber:     #EF9F27;
+    --amber-bg:  #faeeda;
+    --amber-txt: #633806;
+    --red:       #E24B4A;
+    --red-bg:    #fcebeb;
+    --red-txt:   #791f1f;
+    --blue-bg:   #e6f1fb;
+    --blue-txt:  #0c447c;
+    --radius:    8px;
+    --radius-lg: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:        #1c1c1a;
+      --bg2:       #252523;
+      --bg3:       #2e2e2b;
+      --text:      #e8e6de;
+      --text2:     #9c9a92;
+      --text3:     #6b6a64;
+      --border:    rgba(255,255,255,0.10);
+      --border2:   rgba(255,255,255,0.18);
+      --green-bg:  #173404;
+      --green-txt: #c0dd97;
+      --amber-bg:  #412402;
+      --amber-txt: #fac775;
+      --red-bg:    #501313;
+      --red-txt:   #f09595;
+      --blue-bg:   #042c53;
+      --blue-txt:  #b5d4f4;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  .topbar {
+    background: var(--bg);
+    border-bottom: 0.5px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-left { display: flex; flex-direction: column; gap: 1px; }
+  .topbar-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .topbar-sub { font-size: 11px; color: var(--text2); }
+  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .period-badge {
+    font-size: 11px; font-weight: 500;
+    background: var(--blue-bg); color: var(--blue-txt);
+    border-radius: 10px; padding: 3px 10px;
+  }
+
+  select, input[type=text] {
+    font-size: 12px; padding: 5px 10px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border2);
+    background: var(--bg2); color: var(--text);
+    cursor: pointer; outline: none;
+  }
+  select:focus, input[type=text]:focus { border-color: #378add; }
+
+  .edit-btn {
+    font-size: 11px; font-weight: 500;
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border2);
+    background: var(--bg2); color: var(--text2);
+    cursor: pointer; transition: background .15s, color .15s;
+  }
+  .edit-btn:hover { background: var(--bg3); color: var(--text); }
+  .edit-btn.active { background: var(--blue-bg); color: var(--blue-txt); border-color: transparent; }
+
+  .body { display: flex; flex: 1; overflow: hidden; }
+
+  .sidebar {
+    width: 240px; flex-shrink: 0;
+    background: var(--bg);
+    border-right: 0.5px solid var(--border);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+
+  .sidebar-label {
+    font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text3); padding: 14px 14px 6px;
+  }
+
+  .loc-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background .1s, border-color .1s;
+  }
+  .loc-item:hover { background: var(--bg2); }
+  .loc-item.selected { background: var(--bg2); border-left-color: #378add; }
+
+  .loc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .loc-info { flex: 1; min-width: 0; }
+  .loc-name { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .loc-owner { font-size: 10px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini-gauges { display: flex; gap: 3px; flex-shrink: 0; }
+
+  .main { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  .detail-header {
+    background: var(--bg); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+  }
+  .detail-name { font-size: 16px; font-weight: 600; color: var(--text); }
+  .detail-owner { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .status-pill { font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 12px; white-space: nowrap; }
+
+  .section-label {
+    font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text3); margin-bottom: 8px;
+  }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+
+  .kpi-card {
+    background: var(--bg); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .kpi-top { display: flex; align-items: center; justify-content: space-between; }
+  .kpi-lbl { font-size: 10px; color: var(--text2); }
+  .kpi-trend { font-size: 11px; font-weight: 600; }
+  .kpi-val { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+  .kpi-bar-bg { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+  .kpi-bar-fill { height: 100%; border-radius: 2px; transition: width .4s ease; }
+  .kpi-target { font-size: 9px; color: var(--text3); }
+
+  .gauge-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+
+  .gauge-card {
+    background: var(--bg); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 10px 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .gauge-val { font-size: 15px; font-weight: 600; color: var(--text); }
+  .gauge-lbl { font-size: 10px; color: var(--text2); text-align: center; }
+  .gauge-tgt { font-size: 9px; color: var(--text3); }
+
+  .flags-card {
+    background: var(--bg); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .flag { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text2); }
+  .fdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+
+  .edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  .edit-card {
+    background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .edit-lbl { font-size: 10px; color: var(--text2); }
+  .edit-row { display: flex; align-items: center; gap: 6px; }
+  .edit-inp {
+    flex: 1; font-size: 13px; font-weight: 500; color: var(--text);
+    background: var(--bg); border: 0.5px solid var(--border2);
+    border-radius: 4px; padding: 4px 8px; outline: none;
+  }
+  .edit-inp:focus { border-color: #378add; }
+  .edit-unit { font-size: 11px; color: var(--text3); }
+  .save-btn {
+    font-size: 12px; font-weight: 600; padding: 8px 20px;
+    border-radius: var(--radius); border: none;
+    background: #378add; color: #fff; cursor: pointer; transition: background .15s;
+  }
+  .save-btn:hover { background: #185fa5; }
+
+  @media (max-width: 700px) {
+    .sidebar { display: none; }
+    .kpi-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .gauge-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">Alma College Dining — Operations Dashboard</div>
+      <div class="topbar-sub">Metz Culinary Management &nbsp;·&nbsp; GM: Micah Braman</div>
+    </div>
+    <div class="topbar-right">
+      <select id="period-sel" onchange="setPeriod(this.value)">
+        <option value="wk">Week of 3/18/26</option>
+        <option value="ptd">Period to date</option>
+        <option value="ytd">Year to date</option>
+      </select>
+      <span class="period-badge" id="period-badge">Week 11 · P3</span>
+      <button class="edit-btn" id="edit-btn" onclick="toggleEdit()">Edit actuals</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="sidebar">
+      <div class="sidebar-label">All locations</div>
+      <div id="sidebar-list"></div>
+    </div>
+    <div class="main" id="main-panel"></div>
+  </div>
+</div>
+
+<script>
+const LOCS = [
+  {
+    id: 0,
+    name: "Hamilton Commons",
+    owner: "Dan · Residential Lead",
+    type: "residential",
+    status: "watch",
+    kpis: [
+      { label: "food cost %",   val: 41.3,  target: 36.5,  unit: "%", fmt: v => v.toFixed(1)+"%",       higherBad: true,  trend: "+0.8 pts" },
+      { label: "net sales",     val: 18400, target: 20000, unit: "$", fmt: v => "$"+v.toLocaleString(), higherBad: false, trend: "-3.2%" },
+      { label: "labor %",       val: 36.1,  target: 35.0,  unit: "%", fmt: v => v.toFixed(1)+"%",       higherBad: true,  trend: "-0.4 pts" }
+    ],
+    gauges: [
+      { label: "meals served",       val: 3840, min: 0,  max: 5000, target: 4000, fmt: v => v.toLocaleString(), higherBad: false },
+      { label: "waste (lbs)",        val: 62,   min: 0,  max: 120,  target: 40,   fmt: v => v+" lbs",           higherBad: true  },
+      { label: "temp compliance",    val: 74,   min: 0,  max: 100,  target: 95,   fmt: v => v+"%",              higherBad: false },
+      { label: "production records", val: 40,   min: 0,  max: 100,  target: 100,  fmt: v => v+"%",              higherBad: false },
+      { label: "SOP completion",     val: 35,   min: 0,  max: 100,  target: 100,  fmt: v => v+"%",              higherBad: false },
+      { label: "waste cost $",       val: 310,  min: 0,  max: 600,  target: 200,  fmt: v => "$"+v,              higherBad: true  }
+    ],
+    flags: [
+      { t: "bad",  msg: "FC 4.8 pts over budget — no production records" },
+      { t: "bad",  msg: "Temp Taker not fully implemented" },
+      { t: "warn", msg: "Station SOPs 35% complete (Omelet, Mongo, Deli)" },
+      { t: "ok",   msg: "Dan confirmed Acting GM authority" }
+    ]
+  },
+  {
+    id: 1,
+    name: "Starbucks #29348",
+    owner: "Heather Louis · Retail Mgr",
+    type: "retail",
+    status: "ok",
+    kpis: [
+      { label: "net sales",  val: 9120, target: 8500, unit: "$", fmt: v => "$"+v.toLocaleString(), higherBad: false, trend: "+5.6%" },
+      { label: "labor %",    val: 31.8, target: 32.0, unit: "%", fmt: v => v.toFixed(1)+"%",       higherBad: true,  trend: "-0.2 pts" },
+      { label: "avg ticket", val: 7.84, target: 7.50, unit: "$", fmt: v => "$"+v.toFixed(2),       higherBad: false, trend: "+$0.12" }
+    ],
+    gauges: [
+      { label: "shrink / waste",    val: 218,  min: 0,   max: 400,  target: 195,  fmt: v => "$"+v,              higherBad: true  },
+      { label: "shift audit %",     val: 78,   min: 0,   max: 100,  target: 100,  fmt: v => v+"%",              higherBad: false },
+      { label: "wk/wk sales",       val: 5.6,  min: -15, max: 15,   target: 0,    fmt: v => (v>=0?"+":"")+v.toFixed(1)+"%", higherBad: false },
+      { label: "transactions",      val: 1163, min: 0,   max: 1500, target: 1133, fmt: v => v.toLocaleString(), higherBad: false },
+      { label: "voids / comps",     val: 64,   min: 0,   max: 200,  target: 60,   fmt: v => "$"+v,              higherBad: true  },
+      { label: "open action items", val: 2,    min: 0,   max: 10,   target: 0,    fmt: v => v+" items",         higherBad: true  }
+    ],
+    flags: [
+      { t: "ok",   msg: "Sales up — Lent/seasonal lift active" },
+      { t: "ok",   msg: "Renovation timeline confirmed 2027" },
+      { t: "warn", msg: "2 shift audits missed this week" },
+      { t: "neu",  msg: "Oracle Simphony tip config — monitor" }
+    ]
+  },
+  {
+    id: 2,
+    name: "Mac's / Loch Lomond",
+    owner: "Heather Louis · Retail Mgr",
+    type: "retail",
+    status: "watch",
+    kpis: [
+      { label: "net sales",  val: 5340, target: 6000, unit: "$", fmt: v => "$"+v.toLocaleString(), higherBad: false, trend: "-3.1%" },
+      { label: "labor %",    val: 38.4, target: 35.0, unit: "%", fmt: v => v.toFixed(1)+"%",       higherBad: true,  trend: "+1.2 pts" },
+      { label: "avg ticket", val: 6.20, target: 6.50, unit: "$", fmt: v => "$"+v.toFixed(2),       higherBad: false, trend: "-$0.18" }
+    ],
+    gauges: [
+      { label: "voids / comps",     val: 142,  min: 0,   max: 300,  target: 90,  fmt: v => "$"+v,              higherBad: true  },
+      { label: "wk/wk sales",       val: -3.1, min: -15, max: 15,   target: 0,   fmt: v => (v>=0?"+":"")+v.toFixed(1)+"%", higherBad: false },
+      { label: "menu board status", val: 60,   min: 0,   max: 100,  target: 100, fmt: v => v+"%",              higherBad: false },
+      { label: "transactions",      val: 861,  min: 0,   max: 1200, target: 923, fmt: v => v.toLocaleString(), higherBad: false },
+      { label: "open action items", val: 4,    min: 0,   max: 10,   target: 0,   fmt: v => v+" items",         higherBad: true  },
+      { label: "schedule variance", val: 3.4,  min: -5,  max: 8,    target: 0,   fmt: v => (v>=0?"+":"")+v.toFixed(1)+" pts", higherBad: true }
+    ],
+    flags: [
+      { t: "bad",  msg: "Sales dip — ticket avg below $6.50 target" },
+      { t: "bad",  msg: "Labor 3.4 pts over — schedule review needed" },
+      { t: "warn", msg: "Voids elevated — POS audit required" },
+      { t: "neu",  msg: "Rise Vision menu board update pending" }
+    ]
+  },
+  {
+    id: 3,
+    name: "Qdoba",
+    owner: "Heather Louis · Retail Mgr",
+    type: "retail",
+    status: "ok",
+    kpis: [
+      { label: "net sales",   val: 7880, target: 7500, unit: "$", fmt: v => "$"+v.toLocaleString(), higherBad: false, trend: "+5.8%" },
+      { label: "food cost %", val: 34.2, target: 35.0, unit: "%", fmt: v => v.toFixed(1)+"%",       higherBad: true,  trend: "-0.6 pts" },
+      { label: "avg ticket",  val: 9.10, target: 8.75, unit: "$", fmt: v => "$"+v.toFixed(2),       higherBad: false, trend: "+$0.22" }
+    ],
+    gauges: [
+      { label: "throughput / hr",   val: 48,  min: 20, max: 70,  target: 45,  fmt: v => v+" /hr",         higherBad: false },
+      { label: "labor %",           val: 33.1,min: 20, max: 50,  target: 34,  fmt: v => v.toFixed(1)+"%", higherBad: true  },
+      { label: "wk/wk sales",       val: 5.8, min:-15, max: 15,  target: 0,   fmt: v => (v>=0?"+":"")+v.toFixed(1)+"%", higherBad: false },
+      { label: "par compliance",    val: 72,  min: 0,  max: 100, target: 95,  fmt: v => v+"%",            higherBad: false },
+      { label: "allergen review",   val: 80,  min: 0,  max: 100, target: 100, fmt: v => v+"%",            higherBad: false },
+      { label: "open action items", val: 1,   min: 0,  max: 10,  target: 0,   fmt: v => v+" items",       higherBad: true  }
+    ],
+    flags: [
+      { t: "ok",   msg: "Ticket avg above target — LTO lift" },
+      { t: "ok",   msg: "FC under budget this week" },
+      { t: "warn", msg: "Par depletion noted on weekends" },
+      { t: "neu",  msg: "Nutritics allergen review pending" }
+    ]
+  },
+  {
+    id: 4,
+    name: "Catering Operations",
+    owner: "Chelsea Crawford · Catering Dir",
+    type: "catering",
+    status: "watch",
+    kpis: [
+      { label: "event revenue",  val: 11900, target: 12000, unit: "$", fmt: v => "$"+v.toLocaleString(), higherBad: false, trend: "-0.8%" },
+      { label: "food cost %",    val: 38.7,  target: 36.5,  unit: "%", fmt: v => v.toFixed(1)+"%",       higherBad: true,  trend: "+1.4 pts" },
+      { label: "exec on-time %", val: 86,    target: 95,    unit: "%", fmt: v => v+"%",                  higherBad: false, trend: "-4 pts" }
+    ],
+    gauges: [
+      { label: "events this week",  val: 7,   min: 0, max: 15,  target: 8,   fmt: v => v+" events", higherBad: false },
+      { label: "upcoming (7 days)", val: 4,   min: 0, max: 15,  target: 5,   fmt: v => v+" events", higherBad: false },
+      { label: "BEO board current", val: 100, min: 0, max: 100, target: 100, fmt: v => v+"%",       higherBad: false },
+      { label: "prep list done",    val: 65,  min: 0, max: 100, target: 100, fmt: v => v+"%",       higherBad: false },
+      { label: "open action items", val: 5,   min: 0, max: 15,  target: 0,   fmt: v => v+" items",  higherBad: true  },
+      { label: "smallwares org %",  val: 40,  min: 0, max: 100, target: 100, fmt: v => v+"%",       higherBad: false }
+    ],
+    flags: [
+      { t: "bad",  msg: "Exec rate 86% — 9 pts below 95% target" },
+      { t: "warn", msg: "Lent / St. Pat's / Easter preps active" },
+      { t: "warn", msg: "Basement smallwares consolidation incomplete" },
+      { t: "ok",   msg: "BEO board current — Chelsea owns" }
+    ]
+  }
+];
+
+let selected = 0;
+let editMode = false;
+
+function metricColor(val, target, higherBad) {
+  const r = val / target;
+  if (higherBad) {
+    if (r > 1.05) return { bar: "#E24B4A", trend: "#E24B4A" };
+    if (r > 1.00) return { bar: "#EF9F27", trend: "#EF9F27" };
+    return { bar: "#639922", trend: "#639922" };
+  } else {
+    if (r < 0.90) return { bar: "#E24B4A", trend: "#E24B4A" };
+    if (r < 0.96) return { bar: "#EF9F27", trend: "#EF9F27" };
+    return { bar: "#639922", trend: "#639922" };
+  }
+}
+
+function gaugeColor(val, min, max, target, higherBad) {
+  const pct  = (val - min) / (max - min);
+  const tpct = (target - min) / (max - min);
+  if (higherBad) {
+    if (pct > tpct * 1.05) return { arc: "#E24B4A", needle: "#A32D2D" };
+    if (pct > tpct)        return { arc: "#EF9F27", needle: "#854F0B" };
+    return { arc: "#639922", needle: "#27500A" };
+  } else {
+    if (pct < tpct * 0.88) return { arc: "#E24B4A", needle: "#A32D2D" };
+    if (pct < tpct * 0.95) return { arc: "#EF9F27", needle: "#854F0B" };
+    return { arc: "#639922", needle: "#27500A" };
+  }
+}
+
+function statusColor(s) {
+  return s === "ok" ? "#639922" : s === "watch" ? "#EF9F27" : "#E24B4A";
+}
+
+function statusPill(s) {
+  const map = {
+    ok:       { bg: "var(--green-bg)", color: "var(--green-txt)", label: "on track" },
+    watch:    { bg: "var(--amber-bg)", color: "var(--amber-txt)", label: "watch" },
+    critical: { bg: "var(--red-bg)",   color: "var(--red-txt)",   label: "critical" }
+  };
+  return map[s] || map.watch;
+}
+
+function dotColor(t) {
+  return t === "ok" ? "#639922" : t === "warn" ? "#EF9F27" : t === "bad" ? "#E24B4A" : "var(--border2)";
+}
+
+function trendColor(trend, higherBad) {
+  if (!trend) return "var(--text3)";
+  const up = trend[0] === "+";
+  return (higherBad && up) || (!higherBad && !up) ? "#E24B4A" : "#639922";
+}
+
+function drawMini(canvas, val, min, max, target, higherBad) {
+  const dpr = window.devicePixelRatio || 1;
+  const S = 28;
+  canvas.width  = S * dpr;
+  canvas.height = S * dpr;
+  canvas.style.width  = S + "px";
+  canvas.style.height = S + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const cx = S/2, cy = S * 0.64, r = S * 0.37;
+  const sA = Math.PI * 1.1, eA = Math.PI * 1.9, rng = eA - sA;
+  const dark = matchMedia("(prefers-color-scheme:dark)").matches;
+  ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(cx, cy, r, sA, eA);
+  ctx.strokeStyle = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.09)";
+  ctx.lineWidth = r * 0.24; ctx.stroke();
+  const pct = Math.max(0, Math.min(1, (val - min) / (max - min)));
+  const col = gaugeColor(val, min, max, target, higherBad);
+  ctx.beginPath(); ctx.arc(cx, cy, r, sA, sA + pct * rng);
+  ctx.strokeStyle = col.arc; ctx.lineWidth = r * 0.24; ctx.stroke();
+  const nA = sA + pct * rng;
+  ctx.beginPath(); ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(nA) * r * 0.7, cy + Math.sin(nA) * r * 0.7);
+  ctx.strokeStyle = col.needle; ctx.lineWidth = r * 0.1; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.14, 0, Math.PI * 2);
+  ctx.fillStyle = dark ? "#444" : "#bbb"; ctx.fill();
+}
+
+function drawFull(canvas, val, min, max, target, higherBad) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth || 140;
+  const H = Math.round(W * 0.58);
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = "100%";
+  canvas.style.height = H + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const cx = W/2, cy = H * 0.82, r = Math.min(W, H * 1.7) * 0.39;
+  const sA = Math.PI * 1.1, eA = Math.PI * 1.9, rng = eA - sA;
+  const dark = matchMedia("(prefers-color-scheme:dark)").matches;
+  ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(cx, cy, r, sA, eA);
+  ctx.strokeStyle = dark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.08)";
+  ctx.lineWidth = r * 0.18; ctx.stroke();
+  const pct = Math.max(0, Math.min(1, (val - min) / (max - min)));
+  const col = gaugeColor(val, min, max, target, higherBad);
+  ctx.beginPath(); ctx.arc(cx, cy, r, sA, sA + pct * rng);
+  ctx.strokeStyle = col.arc; ctx.lineWidth = r * 0.18; ctx.stroke();
+  const tpct = Math.max(0, Math.min(1, (target - min) / (max - min)));
+  const tA = sA + tpct * rng;
+  ctx.beginPath(); ctx.arc(cx + Math.cos(tA) * r, cy + Math.sin(tA) * r, r * 0.055, 0, Math.PI * 2);
+  ctx.fillStyle = dark ? "#ddd" : "#555"; ctx.fill();
+  for (let i = 0; i <= 8; i++) {
+    const a = sA + (i / 8) * rng;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * r * 0.74, cy + Math.sin(a) * r * 0.74);
+    ctx.lineTo(cx + Math.cos(a) * r * 0.84, cy + Math.sin(a) * r * 0.84);
+    ctx.strokeStyle = dark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.15)";
+    ctx.lineWidth = i % 4 === 0 ? 1.5 : 0.8; ctx.stroke();
+  }
+  const nA = sA + pct * rng;
+  ctx.beginPath(); ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(nA) * r * 0.7, cy + Math.sin(nA) * r * 0.7);
+  ctx.strokeStyle = col.needle; ctx.lineWidth = r * 0.055; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.1, 0, Math.PI * 2);
+  ctx.fillStyle = dark ? "#444" : "#ccc"; ctx.fill();
+}
+
+function buildSidebar() {
+  document.getElementById("sidebar-list").innerHTML = LOCS.map(loc => `
+    <div class="loc-item${loc.id === selected ? " selected" : ""}" onclick="selectLoc(${loc.id})">
+      <span class="loc-dot" style="background:${statusColor(loc.status)}"></span>
+      <div class="loc-info">
+        <div class="loc-name">${loc.name}</div>
+        <div class="loc-owner">${loc.owner}</div>
+      </div>
+      <div class="mini-gauges">
+        ${loc.kpis.map((_, i) => `<canvas id="mg-${loc.id}-${i}"></canvas>`).join("")}
+      </div>
+    </div>`).join("");
+}
+
+function renderMiniGauges() {
+  LOCS.forEach(loc => {
+    loc.kpis.forEach((k, i) => {
+      const c = document.getElementById(`mg-${loc.id}-${i}`);
+      if (!c) return;
+      const mn = k.unit === "%" ? 0 : k.target * 0.4;
+      const mx = k.unit === "%" ? (k.label.includes("food") || k.label.includes("labor") ? 55 : 100) : k.target * 1.6;
+      drawMini(c, k.val, mn, mx, k.target, k.higherBad);
+    });
+  });
+}
+
+function buildDetail() {
+  const loc = LOCS[selected];
+  const sp  = statusPill(loc.status);
+
+  const kpiHTML = loc.kpis.map((k, i) => {
+    const col    = metricColor(k.val, k.target, k.higherBad);
+    const barPct = Math.min(100, Math.abs((k.val / k.target) * 100)).toFixed(0);
+    const tc     = trendColor(k.trend, k.higherBad);
+    return `<div class="kpi-card">
+      <div class="kpi-top">
+        <span class="kpi-lbl">${k.label}</span>
+        <span class="kpi-trend" style="color:${tc}">${k.trend || ""}</span>
+      </div>
+      <div class="kpi-val">${k.fmt(k.val)}</div>
+      <div class="kpi-bar-bg"><div class="kpi-bar-fill" style="width:${barPct}%;background:${col.bar}"></div></div>
+      <div class="kpi-target">target: ${k.fmt(k.target)}</div>
+    </div>`;
+  }).join("");
+
+  const gaugeHTML = loc.gauges.map((g, i) => `
+    <div class="gauge-card">
+      <canvas id="fg-${loc.id}-${i}" style="width:100%;display:block"></canvas>
+      <div class="gauge-val">${g.fmt(g.val)}</div>
+      <div class="gauge-lbl">${g.label}</div>
+      <div class="gauge-tgt">target: ${g.fmt(g.target)}</div>
+    </div>`).join("");
+
+  const flagHTML = loc.flags.map(f => `
+    <div class="flag">
+      <span class="fdot" style="background:${dotColor(f.t)}"></span>
+      <span>${f.msg}</span>
+    </div>`).join("");
+
+  document.getElementById("main-panel").innerHTML = `
+    <div class="detail-header">
+      <div>
+        <div class="detail-name">${loc.name}</div>
+        <div class="detail-owner">${loc.owner}</div>
+      </div>
+      <span class="status-pill" style="background:${sp.bg};color:${sp.color}">${sp.label}</span>
+    </div>
+    <div>
+      <div class="section-label">Tier-1 KPIs — vs target</div>
+      <div class="kpi-grid">${kpiHTML}</div>
+    </div>
+    <div>
+      <div class="section-label">Operational gauges</div>
+      <div class="gauge-grid">${gaugeHTML}</div>
+    </div>
+    <div class="flags-card">
+      <div class="section-label" style="margin-bottom:4px">Flags &amp; actions</div>
+      ${flagHTML}
+    </div>
+    <div id="edit-section" style="display:${editMode ? "block" : "none"}">
+      <div class="section-label">Edit actuals — ${loc.name}</div>
+      ${buildEditForm(loc)}
+    </div>`;
+
+  requestAnimationFrame(() => {
+    loc.gauges.forEach((g, i) => {
+      const c = document.getElementById(`fg-${loc.id}-${i}`);
+      if (c) drawFull(c, g.val, g.min, g.max, g.target, g.higherBad);
+    });
+  });
+}
+
+function buildEditForm(loc) {
+  const all = [
+    ...loc.kpis.map((k, i)   => ({ key: `kpi-${i}`,   label: k.label, val: k.val, unit: k.unit })),
+    ...loc.gauges.map((g, i) => ({ key: `gauge-${i}`, label: g.label, val: g.val, unit: g.unit || "" }))
+  ];
+  return `<div class="edit-grid">
+    ${all.map(m => `
+      <div class="edit-card">
+        <div class="edit-lbl">${m.label}</div>
+        <div class="edit-row">
+          <input class="edit-inp" id="ei-${loc.id}-${m.key}" type="number" step="0.1" value="${m.val}">
+          <span class="edit-unit">${m.unit}</span>
+        </div>
+      </div>`).join("")}
+  </div>
+  <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+    <button class="save-btn" onclick="saveActuals(${loc.id})">Save actuals</button>
+    <span id="save-msg-${loc.id}" style="font-size:11px;color:var(--green-txt);display:none">Saved!</span>
+  </div>`;
+}
+
+function saveActuals(locId) {
+  const loc = LOCS[locId];
+  loc.kpis.forEach((k, i) => {
+    const el = document.getElementById(`ei-${locId}-kpi-${i}`);
+    if (el) k.val = parseFloat(el.value) || k.val;
+  });
+  loc.gauges.forEach((g, i) => {
+    const el = document.getElementById(`ei-${locId}-gauge-${i}`);
+    if (el) g.val = parseFloat(el.value) || g.val;
+  });
+  const reds = loc.kpis.filter(k => {
+    const r = k.val / k.target;
+    return k.higherBad ? r > 1.05 : r < 0.90;
+  }).length;
+  loc.status = reds >= 2 ? "critical" : reds === 1 ? "watch" : "ok";
+
+  buildSidebar();
+  renderMiniGauges();
+  buildDetail();
+
+  const msg = document.getElementById(`save-msg-${locId}`);
+  if (msg) { msg.style.display = "inline"; setTimeout(() => { msg.style.display = "none"; }, 2000); }
+}
+
+function selectLoc(idx) {
+  selected = idx;
+  buildSidebar();
+  renderMiniGauges();
+  buildDetail();
+}
+
+function toggleEdit() {
+  editMode = !editMode;
+  const btn = document.getElementById("edit-btn");
+  btn.classList.toggle("active", editMode);
+  btn.textContent = editMode ? "Done editing" : "Edit actuals";
+  const es = document.getElementById("edit-section");
+  if (es) es.style.display = editMode ? "block" : "none";
+}
+
+function setPeriod(val) {
+  const labels = { wk: "Week 11 · P3", ptd: "Period 3 to date", ytd: "Year to date" };
+  document.getElementById("period-badge").textContent = labels[val] || "";
+}
+
+buildSidebar();
+buildDetail();
+requestAnimationFrame(renderMiniGauges);
+
+window.addEventListener("resize", () => {
+  renderMiniGauges();
+  const loc = LOCS[selected];
+  loc.gauges.forEach((g, i) => {
+    const c = document.getElementById(`fg-${loc.id}-${i}`);
+    if (c) drawFull(c, g.val, g.min, g.max, g.target, g.higherBad);
+  });
+});
+</script>
+</body>
+</html>

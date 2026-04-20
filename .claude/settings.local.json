@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install streamlit pandas plotly)",
+      "Bash(pip3 install streamlit pandas plotly)",
+      "Bash(python3 init_db.py)",
+      "Bash(python3 -m streamlit --version)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(sqlite3 \"/Users/widadhajji/NEW APP METZ/budget.db\" \".tables\")",
+      "Bash(sqlite3 \"/Users/widadhajji/NEW APP METZ/budget.db\" \".schema\")",
+      "Bash(pip3 install msal requests openpyxl)",
+      "Bash(python3 -c \":*)",
+      "Bash(python3 -m py_compile flash_report.py)",
+      "Bash(python3 -m py_compile db.py)",
+      "Bash(chmod +x \"/Users/widadhajji/NEW APP METZ/setup_env.sh\")",
+      "Bash(pip install pdfplumber)",
+      "Bash(pip3 install pdfplumber)",
+      "Bash(curl -s http://localhost:8501/_stcore/health)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\(''/Users/widadhajji/NEW APP METZ/views/data_import.py''\\).read\\(\\)\\); print\\(''Syntax OK''\\)\")",
+      "Bash(chmod +x \"/Users/widadhajji/NEW APP METZ/START_APP.command\")",
+      "Bash(ls \"/Users/widadhajji/NEW APP METZ/\"credentials* \"/Users/widadhajji/NEW APP METZ/\"client_secret*)",
+      "Read(//Users/widadhajji/Downloads/**)",
+      "Bash(rm -f token.json)",
+      "Bash(python3 gmail_import.py)",
+      "Bash(lsof -ti:8501)",
+      "Bash(python3 -m streamlit run app.py --server.port 8501)",
+      "Bash(open http://localhost:8501)",
+      "Bash(python3 -c ':*)",
+      "Bash(xargs kill:*)",
+      "Bash(rm imports/2026-04-15__Tender_Totals*.pdf)"
+    ]
+  }
+}

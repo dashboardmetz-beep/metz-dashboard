@@ -1,0 +1,13 @@
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+budget.db
+budget.db-shm
+budget.db-wal
+credentials.json
+token.json
+client_secret*.json
+.auth_session
+.DS_Store
+imports/
+assets/Metz-image.jpeg

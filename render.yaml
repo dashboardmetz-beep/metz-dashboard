@@ -1,0 +1,13 @@
+# Optional: deploy at https://render.com (Dashboard → New → Blueprint)
+services:
+  - type: web
+    name: metz-operations
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: ANTHROPIC_API_KEY
+        sync: false

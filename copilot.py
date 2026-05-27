@@ -12,10 +12,16 @@ import streamlit as st
 from datetime import date, timedelta
 
 from config import (
-    DB_PATH, DEPARTMENTS, REVENUE_STREAMS, REVENUE_STREAM_LABELS,
-    COPILOT_MODEL, COPILOT_MAX_TOKENS, COPILOT_MAX_QUERY_ROWS,
+    DB_PATH,
+    DEPARTMENTS,
+    REVENUE_STREAMS,
+    COPILOT_MODEL,
+    COPILOT_MAX_TOKENS,
+    COPILOT_MAX_QUERY_ROWS,
 )
 
+_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+_ABS_DB_PATH = DB_PATH if os.path.isabs(DB_PATH) else os.path.join(_PROJECT_ROOT, DB_PATH)
 
 # ─── Blocked SQL keywords (defense-in-depth) ──────────────────────
 
@@ -29,23 +35,76 @@ _BLOCKED_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_NAV_PAGES = [
+    "Daily Entry",
+    "Weekly Budget",
+    "Flash Report",
+    "Dashboard",
+    "Forecast & Allowable",
+    "YoY & Alerts",
+    "Inventory",
+    "Checklists",
+    "Scheduling",
+    "Training",
+    "Planning",
+    "Communication",
+    "Data Import",
+]
 
-# ─── Anthropic client ─────────────────────────────────────────────
+
+def _load_dotenv():
+    """Load .env from project root into os.environ (does not override existing)."""
+    env_path = os.path.join(_PROJECT_ROOT, ".env")
+    if not os.path.isfile(env_path):
+        return
+    try:
+        with open(env_path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip("\"'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except OSError:
+        pass
+
+
+def get_api_key():
+    """Return Anthropic API key from secrets, environment, or .env file."""
+    _load_dotenv()
+    try:
+        key = st.secrets.get("ANTHROPIC_API_KEY")
+        if key:
+            return key.strip()
+    except Exception:
+        pass
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    return key.strip() if key else None
 
 
 def get_anthropic_client():
     """Return an Anthropic client, or None if no API key is configured."""
-    api_key = None
-    try:
-        api_key = st.secrets.get("ANTHROPIC_API_KEY")
-    except Exception:
-        pass
-    if not api_key:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = get_api_key()
     if not api_key:
         return None
     import anthropic
     return anthropic.Anthropic(api_key=api_key)
+
+
+def api_key_status_message():
+    """Human-readable setup instructions when the API key is missing."""
+    return (
+        "The AI assistant needs an **Anthropic API key**.\n\n"
+        "1. Create a key at [console.anthropic.com](https://console.anthropic.com)\n"
+        "2. Add to project `.env`:\n"
+        "   `ANTHROPIC_API_KEY=sk-ant-...`\n"
+        "3. Or add to `.streamlit/secrets.toml`:\n"
+        "   `ANTHROPIC_API_KEY = \"sk-ant-...\"`\n"
+        "4. Restart the app"
+    )
 
 
 # ─── Schema extraction ────────────────────────────────────────────
@@ -53,9 +112,10 @@ def get_anthropic_client():
 
 @st.cache_data(ttl=600)
 def get_schema_text(_conn_id="default"):
-    """Extract all CREATE TABLE statements, redacting password_hash. Cached for 10 min."""
-    import sqlite3
-    ro_conn = sqlite3.connect("file:{}?mode=ro".format(DB_PATH), uri=True, timeout=5)
+    """Extract all CREATE TABLE statements, redacting password_hash."""
+    ro_conn = sqlite3.connect(
+        "file:{}?mode=ro".format(_ABS_DB_PATH), uri=True, timeout=5
+    )
     rows = ro_conn.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL"
     ).fetchall()
@@ -93,62 +153,57 @@ def build_system_prompt(conn, user, current_page, current_department):
     dept_list = ", ".join(DEPARTMENTS)
     stream_list = ", ".join(REVENUE_STREAMS)
 
-    return """You are a data analyst assistant for the Campus Dining Operations Platform at Alma College, managed by Metz Culinary Management. You help dining staff answer questions about their operational data.
+    return """You are an executive operations analyst for the Metz Operations Platform (Metz Culinary Management). You support general managers and directors with clear, professional briefings on budgets, labor, food cost, sales, and operations.
 
 ## Database Schema
 {schema}
 
 ## Domain Knowledge
 - Departments: {dept_list}
-- Revenue Streams: {stream_list} (column names in daily_sales: board, retail, flex, catering, other)
-- Fiscal week: Sunday through Saturday. The `week_start` column is always a Sunday date.
-- Use `get_week_start()` logic: week_start = date - ((weekday + 1) % 7) days. In SQL: date(d, '-' || ((strftime('%w', d) + 0) ) || ' days') gives Sunday.
-- Budget workflow statuses: Draft, Submitted, Returned, Approved
-- Key Metrics (calculated, not stored):
+- Revenue streams: {stream_list} (daily_sales columns: board, retail, flex, catering, other)
+- Fiscal week: Sunday through Saturday. `week_start` is always a Sunday date.
+- Budget statuses: Draft, Submitted, Returned, Approved
+- Key metrics (calculate when needed):
   - Labor % = (total_labor_dollars / total_revenue) * 100
-  - SPLH (Sales Per Labor Hour) = total_revenue / total_labor_hours
+  - SPLH = total_revenue / total_labor_hours
   - COS % = (cos_dollars / total_revenue) * 100
-  - CPM (Cost Per Meal, Board only) = cos_dollars / meals_served
-  - MPLH (Meals Per Labor Hour, Board only) = meals_served / total_labor_hours
-  - Food Cost = invoice_total + inventory_start - inventory_end + adjustments
-  - Total Revenue = board_revenue + retail_revenue + flex_revenue + catering_revenue + other_revenue
+  - Food cost = invoice_total + inventory_start - inventory_end + adjustments
+  - Total revenue = sum of all revenue stream columns in weekly_financials
 
 ## Current Context
 - Today: {today_str}
 - Current fiscal week starts: {week_start}
-- Current user: {user_name} ({user_role})
-- User department: {user_dept}
+- User: {user_name} ({user_role})
+- Department scope: {user_dept}
 - Current page: {current_page}
 
 ## Instructions
 1. Generate ONLY SELECT queries. Never modify data.
-2. Use exact table and column names from the schema above.
-3. When the user says "this week", use week_start = '{week_start}'.
-4. Use exact department names from the list: {dept_list}
-5. If the user's role is not admin/approver, scope queries to their department ({user_dept}) unless they ask about all departments.
-6. Format your answers clearly — use dollar signs for money, percentages where appropriate, and readable dates.
-7. If a query returns no results, explain what that likely means (e.g., no data entered yet).
-8. For SQLite date comparisons use ISO strings like '{today_str}'.
-9. Keep SQL efficient — select only needed columns, use appropriate WHERE clauses.
-10. NEVER query or reveal password_hash values.
-11. When asked about trends, order results chronologically and explain the pattern.
-12. For daily data, the date column is usually named `date`. For weekly data, use `week_start`.
-13. When calculating metrics that involve division, handle zero denominators gracefully with NULLIF().
-14. You may call the query_database tool multiple times if you need data from different tables to answer a complex question.
-15. Always provide a clear, conversational answer — not just raw numbers. Add context and interpretation.
-16. If the user asks to go to a page or needs to be directed somewhere, use the navigate_to tool. For example: "take me to labor", "go to food cost", "show me the dashboard".
-17. You can also proactively suggest navigation when it would help the user. For example, if they ask about entering revenue, navigate them to Weekly Budget > Revenue.
+2. Use exact table and column names from the schema.
+3. "This week" means week_start = '{week_start}'.
+4. Use exact department names: {dept_list}
+5. If the user is not admin/approver, scope to their department ({user_dept}) unless they ask for all.
+6. Format answers clearly — dollars, percentages, readable dates.
+7. If no rows returned, explain likely reasons (no data entered yet).
+8. Use ISO date strings for SQLite comparisons.
+9. Use NULLIF() for division to avoid divide-by-zero.
+10. Never query password_hash.
+11. Call query_database multiple times when needed for complex questions.
+12. Write in a professional, corporate tone — concise, factual, and actionable. No casual language or emoji.
+13. Structure longer answers with short paragraphs. Lead with the headline finding, then supporting detail.
+14. Give concise, actionable answers with interpretation — not just raw numbers.
+15. Use navigate_to when the user wants to open a page or when directing them to enter data.
 
-## App Pages & Subsections
-- Daily Entry: daily sales and labor entry
+## App Pages
+- Daily Entry: daily sales and labor
 - Weekly Budget: Revenue, Food Cost, Labor, Financials & Costs, Targets, Invoice Tracker
 - Flash Report: Financial Summary, Operational Metrics, Budget & Projections
-- Dashboard: overview with KPIs and charts
-- Calendar: academic and dining events
-- Pre-Service Meeting: meeting notes
-- Shift Communication: shift logs
-- Contacts: staff directory
-- Data Import: CTUIT imports, projections, meal plans""".format(
+- Dashboard: Operations Dashboard, Overview, KPIs
+- Forecast & Allowable, YoY & Alerts
+- Planning: Calendar, Pre-Service Meeting, Catering & Events, Waste Tracking
+- Communication: Shift Communication, Contract Areas, Safety
+- Inventory, Checklists, Scheduling, Training
+- Data Import: CTUIT, Odyssey, labor, inventory imports""".format(
         schema=schema,
         dept_list=dept_list,
         stream_list=stream_list,
@@ -167,17 +222,15 @@ COPILOT_TOOLS = [
     {
         "name": "query_database",
         "description": (
-            "Execute a read-only SQL SELECT query against the campus dining "
-            "SQLite database. Returns up to {max_rows} rows as JSON. Use this "
-            "to answer questions about budgets, sales, labor, food cost, "
-            "safety, catering, and other dining operations data."
+            "Execute a read-only SQL SELECT query against the Metz operations "
+            "SQLite database. Returns up to {max_rows} rows as JSON."
         ).format(max_rows=COPILOT_MAX_QUERY_ROWS),
         "input_schema": {
             "type": "object",
             "properties": {
                 "sql": {
                     "type": "string",
-                    "description": "A SQLite SELECT query. Only SELECT statements are allowed.",
+                    "description": "A SQLite SELECT query.",
                 },
                 "explanation": {
                     "type": "string",
@@ -190,30 +243,18 @@ COPILOT_TOOLS = [
     {
         "name": "navigate_to",
         "description": (
-            "Navigate the user to a specific page and subsection in the app. "
-            "Use this when the user asks to go somewhere, or when directing "
-            "them to a relevant page based on their question."
+            "Navigate the user to a page (and optional subsection) in the app."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "page": {
                     "type": "string",
-                    "description": "The page to navigate to.",
-                    "enum": [
-                        "Daily Entry", "Weekly Budget", "Flash Report",
-                        "Dashboard", "Calendar", "Pre-Service Meeting",
-                        "Shift Communication", "Contacts", "Data Import",
-                    ],
+                    "enum": _NAV_PAGES,
                 },
                 "subsection": {
                     "type": "string",
-                    "description": (
-                        "Optional subsection within the page. "
-                        "Weekly Budget: Revenue, Food Cost, Labor, Financials & Costs, Targets, Invoice Tracker. "
-                        "Flash Report: Financial Summary, Operational Metrics, Budget & Projections. "
-                        "Data Import: various import types."
-                    ),
+                    "description": "Optional subsection within the page.",
                 },
             },
             "required": ["page"],
@@ -222,14 +263,11 @@ COPILOT_TOOLS = [
 ]
 
 
-# ─── Query validation ─────────────────────────────────────────────
+# ─── Query validation & execution ─────────────────────────────────
 
 
 def validate_query(sql):
-    """
-    Validate that sql is a safe SELECT statement.
-    Returns (is_valid, error_message).
-    """
+    """Validate that sql is a safe SELECT statement."""
     stripped = sql.strip().rstrip(";").strip()
     if not stripped.upper().startswith("SELECT"):
         return False, "Only SELECT queries are allowed."
@@ -240,25 +278,18 @@ def validate_query(sql):
     return True, ""
 
 
-# ─── Query execution ──────────────────────────────────────────────
-
-
 def execute_readonly_query(sql, max_rows=None):
-    """
-    Execute a SELECT query on a read-only SQLite connection.
-    Returns (results_list, error_string). One will be None.
-    """
+    """Execute SELECT on read-only connection. Returns (results, error)."""
     if max_rows is None:
         max_rows = COPILOT_MAX_QUERY_ROWS
 
-    # Auto-append LIMIT if not present
     sql_upper = sql.strip().upper()
     if "LIMIT" not in sql_upper:
         sql = sql.rstrip(";").strip() + " LIMIT {}".format(max_rows)
 
     try:
         ro_conn = sqlite3.connect(
-            "file:{}?mode=ro".format(DB_PATH), uri=True, timeout=5
+            "file:{}?mode=ro".format(_ABS_DB_PATH), uri=True, timeout=5
         )
         ro_conn.row_factory = sqlite3.Row
         cursor = ro_conn.execute(sql)
@@ -271,18 +302,36 @@ def execute_readonly_query(sql, max_rows=None):
         return None, "Query error: {}".format(str(e))
 
 
+def _serialize_content(content):
+    """Convert SDK content blocks to JSON-serializable dicts for session storage."""
+    if isinstance(content, str):
+        return content
+    out = []
+    for block in content:
+        if isinstance(block, dict):
+            out.append(block)
+        elif hasattr(block, "model_dump"):
+            out.append(block.model_dump(exclude_none=True))
+        elif hasattr(block, "text"):
+            out.append({"type": "text", "text": block.text})
+        else:
+            out.append({"type": "text", "text": str(block)})
+    return out
+
+
 # ─── Claude conversation loop ─────────────────────────────────────
 
 
 def run_copilot_turn(client, conn, messages, user, current_page, current_department):
     """
-    Run one conversational turn with Claude.
-    Handles the tool-use loop (Claude may call query_database multiple times).
+    Run one conversational turn with Claude (tool-use loop).
     Returns (assistant_text, updated_messages).
     """
+    if client is None:
+        raise ValueError("AI client is not configured. Set ANTHROPIC_API_KEY.")
+
     system_prompt = build_system_prompt(conn, user, current_page, current_department)
 
-    # Initial API call
     response = client.messages.create(
         model=COPILOT_MODEL,
         max_tokens=COPILOT_MAX_TOKENS,
@@ -291,46 +340,33 @@ def run_copilot_turn(client, conn, messages, user, current_page, current_departm
         messages=messages,
     )
 
-    # Tool-use loop — allow up to 5 rounds
     for _ in range(5):
-        # Check if Claude wants to use a tool
         tool_uses = [b for b in response.content if b.type == "tool_use"]
         if not tool_uses:
             break
 
-        # Process each tool call
         tool_results = []
         for tool_block in tool_uses:
             if tool_block.name == "query_database":
                 sql = tool_block.input.get("sql", "")
                 is_valid, err = validate_query(sql)
                 if not is_valid:
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_block.id,
-                        "content": json.dumps({"error": err}),
-                    })
+                    payload = {"error": err}
                 else:
                     results, query_err = execute_readonly_query(sql)
-                    if query_err:
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": tool_block.id,
-                            "content": json.dumps({"error": query_err}),
-                        })
-                    else:
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": tool_block.id,
-                            "content": json.dumps({
-                                "row_count": len(results),
-                                "data": results,
-                            }),
-                        })
+                    payload = (
+                        {"error": query_err}
+                        if query_err
+                        else {"row_count": len(results), "data": results}
+                    )
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_block.id,
+                    "content": json.dumps(payload),
+                })
             elif tool_block.name == "navigate_to":
                 page = tool_block.input.get("page", "")
                 subsection = tool_block.input.get("subsection")
-                # Store navigation request in session state for the UI to pick up
                 st.session_state["copilot_navigate"] = {
                     "page": page,
                     "subsection": subsection,
@@ -351,11 +387,12 @@ def run_copilot_turn(client, conn, messages, user, current_page, current_departm
                     "content": json.dumps({"error": "Unknown tool."}),
                 })
 
-        # Append assistant message (with tool_use blocks) + tool results
-        messages.append({"role": "assistant", "content": response.content})
+        messages.append({
+            "role": "assistant",
+            "content": _serialize_content(response.content),
+        })
         messages.append({"role": "user", "content": tool_results})
 
-        # Call Claude again with the tool results
         response = client.messages.create(
             model=COPILOT_MODEL,
             max_tokens=COPILOT_MAX_TOKENS,
@@ -364,17 +401,19 @@ def run_copilot_turn(client, conn, messages, user, current_page, current_departm
             messages=messages,
         )
 
-    # Extract final text answer
     text_parts = [b.text for b in response.content if hasattr(b, "text")]
-    answer = "\n".join(text_parts) if text_parts else "I wasn't able to generate an answer. Please try rephrasing your question."
+    answer = (
+        "\n".join(text_parts)
+        if text_parts
+        else "I couldn't generate an answer. Please try rephrasing your question."
+    )
 
-    # Append final assistant message
-    messages.append({"role": "assistant", "content": response.content})
+    messages.append({
+        "role": "assistant",
+        "content": _serialize_content(response.content),
+    })
 
     return answer, messages
-
-
-# ─── Suggested questions ───────────────────────────────────────────
 
 
 def get_suggested_questions(current_page):
@@ -382,17 +421,17 @@ def get_suggested_questions(current_page):
     suggestions = {
         "Daily Entry": [
             "What were total sales across all departments yesterday?",
-            "Compare today's labor hours to last week's average",
+            "Compare this week's labor hours to last week",
             "Which department had the highest revenue this week?",
         ],
         "Weekly Budget": [
             "Which departments have approved budgets this week?",
-            "Show me labor % trends for the last 4 weeks",
-            "What is the food cost for Board & Catering this week?",
+            "Show labor % trends for the last 4 weeks",
+            "What is food cost for Board & Catering this week?",
         ],
         "Flash Report": [
             "Summarize this week's financial performance",
-            "Which line items have the largest budget variance?",
+            "Which metrics are over budget this week?",
             "Compare COS % across all departments",
         ],
         "Dashboard": [
@@ -400,17 +439,22 @@ def get_suggested_questions(current_page):
             "Which department has the highest labor percentage?",
             "How many budgets are still in Draft status?",
         ],
-        "Calendar": [
-            "What events are scheduled for this week?",
-            "Are there any catering events coming up?",
+        "Operations Dashboard": [
+            "How does this week compare to last year?",
+            "Which department is over labor target?",
+            "Summarize consolidated revenue for this week",
+        ],
+        "Forecast & Allowable": [
+            "What is projected revenue for this week?",
+            "Show allowable spend vs actual food cost",
         ],
         "Data Import": [
-            "When was the last CTUIT import?",
-            "Show me import history for the past month",
+            "When was the last successful import?",
+            "List recent import history",
         ],
     }
     return suggestions.get(current_page, [
-        "What were total sales yesterday?",
-        "Show me labor % for the last 4 weeks",
-        "Which department has the highest revenue this week?",
+        "What is total revenue this week?",
+        "Show labor % for the last 4 weeks",
+        "Which department has the highest revenue?",
     ])

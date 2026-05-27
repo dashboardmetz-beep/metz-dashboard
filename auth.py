@@ -96,85 +96,81 @@ def login_page(conn, fetch_user_fn):
     import base64, os
 
     # Load logo as base64
-    logo_path = os.path.join(os.path.dirname(__file__), "assets", "metz_logo.png")
+    from config import APP_FULL_NAME, APP_TAGLINE, LOGO_PATH
+    logo_path = LOGO_PATH
     logo_b64 = ""
     if os.path.exists(logo_path):
         with open(logo_path, "rb") as f:
             logo_b64 = base64.b64encode(f.read()).decode()
 
+    from config import PLATFORM_TITLE
+
     st.markdown(
         '<style>'
         '[data-testid="stMain"] > div:first-child {'
-        '  background: #FFFFFF !important; min-height:100vh;'
+        '  background: #F0F1F4 !important; min-height: 100vh;'
+        '}'
+        '[data-testid="stSidebar"] { display: none !important; }'
+        '[data-testid="stMain"] .block-container {'
+        '  max-width: 480px !important; padding-top: 0 !important;'
         '}'
         '[data-testid="stMain"] .stTextInput input {'
-        '  background: #FFFFFF !important;'
-        '  border: 1.5px solid #E2E8F0 !important;'
-        '  border-radius: 8px !important;'
-        '  color: #1E293B !important;'
-        '  padding: 14px 16px !important;'
-        '  font-size: 14px !important;'
-        '}'
-        '[data-testid="stMain"] .stTextInput input::placeholder {'
-        '  color: #94A3B8 !important;'
+        '  background: #FAFBFC !important; border: 1px solid #E4E7EC !important;'
+        '  border-radius: 8px !important; padding: 12px 14px !important;'
+        '  font-size: 14px !important; height: 44px !important;'
         '}'
         '[data-testid="stMain"] .stTextInput input:focus {'
-        '  border-color: #D4A843 !important;'
-        '  box-shadow: 0 0 0 3px rgba(212,168,67,0.1) !important;'
+        '  border-color: #C7A462 !important;'
+        '  box-shadow: 0 0 0 3px rgba(199,164,98,0.12) !important;'
         '}'
         '[data-testid="stMain"] .stCheckbox label span {'
-        '  color: #64748B !important; font-size:13px !important;'
+        '  color: #64748B !important; font-size: 13px !important;'
         '}'
         '[data-testid="stMain"] button[kind="primary"] {'
-        '  background: #3D2B1F !important;'
-        '  border: none !important; border-radius:8px !important;'
-        '  padding: 14px !important; font-size:15px !important;'
-        '  font-weight:600 !important; color:#fff !important;'
-        '  -webkit-text-fill-color:#fff !important;'
+        '  background: #1F2A44 !important; border: none !important;'
+        '  border-radius: 8px !important; height: 44px !important;'
+        '  font-weight: 600 !important; letter-spacing: 0.03em !important;'
         '}'
         '[data-testid="stMain"] button[kind="primary"]:hover {'
-        '  background: #2A1E15 !important;'
+        '  background: #2A3654 !important;'
         '}'
         '</style>',
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div style="height:60px"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="metz-login-shell">', unsafe_allow_html=True)
 
-    _, center, _ = st.columns([1.2, 2, 1.2])
+    _, center, _ = st.columns([1, 1.4, 1])
 
     with center:
-        # Logo — save your Metz logo as assets/metz_logo.png
+        st.markdown('<div class="metz-login-card">', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="metz-login-eyebrow">{}</p>'.format(PLATFORM_TITLE),
+            unsafe_allow_html=True,
+        )
+
         from PIL import Image as PILImage
         try:
             if os.path.exists(logo_path):
-                PILImage.open(logo_path)  # validate
-                _, logo_col, _ = st.columns([1, 2, 1])
-                with logo_col:
-                    st.image(logo_path, use_container_width=True)
+                PILImage.open(logo_path)
+                st.image(logo_path, use_container_width=True)
             else:
                 raise FileNotFoundError
         except Exception:
-            # Fallback: text logo
             st.markdown(
-                '<div style="text-align:center;margin-bottom:8px;">'
-                '<div style="font-size:28px;font-weight:800;color:#3D2B1F;'
-                'font-family:Georgia,serif;letter-spacing:-.5px;">Metz</div>'
-                '<div style="font-size:10px;font-weight:600;color:#94A3B8;'
-                'text-transform:uppercase;letter-spacing:0.15em;">'
-                'Culinary Management</div>'
-                '</div>',
+                '<div style="text-align:center;margin-bottom:16px;">'
+                '<div style="font-size:24px;font-weight:600;color:#3D2B1F;'
+                'font-family:\'Source Serif 4\',Georgia,serif;">Metz</div>'
+                '<div style="font-size:9px;font-weight:600;color:#94A3B8;'
+                'text-transform:uppercase;letter-spacing:0.16em;margin-top:4px;">'
+                'Culinary Management</div></div>',
                 unsafe_allow_html=True,
             )
 
-        # Card
         st.markdown(
-            '<div style="text-align:center;margin-bottom:28px;">'
-            '<div style="font-size:24px;font-weight:700;color:#1E293B;'
-            'letter-spacing:-.3px;">Access your dashboard</div>'
-            '<div style="font-size:14px;color:#94A3B8;margin-top:6px;">'
-            'Monitor performance, budgets, and operations in one place</div>'
-            '</div>',
+            '<h1 class="metz-login-title">Welcome back</h1>'
+            '<p class="metz-login-sub">Sign in to manage budgets, labor, '
+            'forecasts, and operational performance.</p>',
             unsafe_allow_html=True,
         )
 
@@ -191,15 +187,12 @@ def login_page(conn, fetch_user_fn):
             key="login_password",
             label_visibility="collapsed",
         )
-
-        remember_me = st.checkbox("Remember me", value=True, key="login_remember")
+        remember_me = st.checkbox("Keep me signed in", value=True, key="login_remember")
 
         if st.session_state.login_error:
             st.error(st.session_state.login_error)
 
-        st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
-
-        if st.button("Sign In", type="primary", use_container_width=True):
+        if st.button("Sign in", type="primary", use_container_width=True):
             if not username_input.strip() or not password_input:
                 st.session_state.login_error = (
                     "Please enter both username and password."
@@ -221,12 +214,13 @@ def login_page(conn, fetch_user_fn):
                 st.rerun()
 
         st.markdown(
-            '<div style="text-align:center;margin-top:48px;'
-            'font-size:11px;color:#CBD5E1;">'
-            'Metz Culinary Management &middot; Campus Dining</div>',
+            '<p style="text-align:center;margin:28px 0 0;font-size:10px;'
+            'color:#94A3B8;letter-spacing:0.08em;text-transform:uppercase;">'
+            '{}</p></div>'.format(APP_FULL_NAME),
             unsafe_allow_html=True,
         )
 
+    st.markdown('</div>', unsafe_allow_html=True)
     return None
 
 
@@ -242,30 +236,21 @@ def render_user_sidebar(user):
 
     st.sidebar.markdown(
         '<div style="display:flex;align-items:center;gap:12px;'
-        'padding:14px 16px;margin:4px 0;'
-        'border-top:1px solid rgba(255,255,255,0.06);">'
-        # Avatar circle with initials
-        '<div style="width:38px;height:38px;border-radius:50%;'
-        'background:linear-gradient(135deg,#4F7DF3,#6C8FF8);'
+        'padding:16px 18px;margin:8px 12px 4px;'
+        'background:rgba(255,255,255,0.04);border-radius:10px;'
+        'border:1px solid rgba(255,255,255,0.06);">'
+        '<div style="width:36px;height:36px;border-radius:8px;'
+        'background:linear-gradient(145deg,#3D2B1F,#5C4033);'
         'display:flex;align-items:center;justify-content:center;'
-        'font-size:14px;font-weight:700;color:#FFFFFF;'
-        'font-family:Inter,sans-serif;flex-shrink:0;'
-        'position:relative;">'
-        '{initials}'
-        '<span style="position:absolute;bottom:0;right:0;'
-        'width:10px;height:10px;border-radius:50%;'
-        'background:#22C55E;border:2px solid #1B2540;"></span>'
-        '</div>'
-        # Name and role
+        'font-size:12px;font-weight:700;color:#C7A462;flex-shrink:0;">'
+        '{initials}</div>'
         '<div style="min-width:0;">'
         '<div style="font-size:13px;font-weight:600;color:#FFFFFF;'
-        'font-family:Inter,sans-serif;white-space:nowrap;'
-        'overflow:hidden;text-overflow:ellipsis;">{name}</div>'
-        '<div style="font-size:11px;color:rgba(255,255,255,0.4);'
-        'font-family:Inter,sans-serif;margin-top:1px;">'
-        '● {role}</div>'
-        '</div>'
-        '</div>'.format(
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+        '{name}</div>'
+        '<div style="font-size:10px;color:rgba(255,255,255,0.45);'
+        'text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;">'
+        '{role}</div></div></div>'.format(
             initials=initials,
             name=user["display_name"],
             role=role_label,

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════
-# Campus Dining Budget App — One-Click Launcher
+# Metz Operations Platform — One-Click Launcher
 # ═══════════════════════════════════════════════════════
 # Double-click this file to start the app.
 # It will open automatically in your browser.
@@ -10,7 +10,7 @@
 cd "$(dirname "$0")"
 
 echo ""
-echo "  🍽  Campus Dining Budget & Operations App"
+echo "  Metz Operations Platform"
 echo "  ─────────────────────────────────────────"
 echo ""
 

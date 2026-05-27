@@ -1,7 +1,16 @@
 """
-Central configuration constants for the Campus Dining Budget App.
+Central configuration constants for the Metz Operations Platform.
 All modules import from here — single source of truth.
 """
+
+# ─── Branding ───────────────────────────────────────────────────
+APP_NAME = "Metz Operations"
+APP_TAGLINE = "Culinary Management"
+APP_FULL_NAME = "Metz Culinary Management"
+PLATFORM_TITLE = "Metz Operations Platform"
+COPILOT_TITLE = "Executive Insights"
+COPILOT_SUBTITLE = "AI-powered operations intelligence"
+PAGE_ICON = "🍽"
 
 DB_PATH = "budget.db"
 
@@ -98,6 +107,10 @@ INVOICE_DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 # Path to the ALMA Invoice Tracker Excel workbook (linked, read directly)
 # Uses environment variable if set, otherwise falls back to default path
 import os as _os
+
+ASSETS_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "assets")
+LOGO_PATH = _os.path.join(ASSETS_DIR, "metz_logo.png")
+
 INVOICE_TRACKER_FILE = _os.environ.get(
     "INVOICE_TRACKER_PATH",
     _os.path.join(_os.path.expanduser("~"), "Downloads", "ALMA INVOICE TRACKER 2025-26.xlsx"),

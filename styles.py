@@ -1,9 +1,14 @@
 """
-Professional theme and styling for Campus Dining Operations Platform.
-Locked design system — do not modify tokens or spacing without approval.
+Professional theme and styling for the Metz Operations Platform.
+Corporate design system — navy, gold, and neutral surfaces.
 """
 
+import base64
+import os
+
 import streamlit as st
+
+from config import APP_FULL_NAME, APP_NAME, APP_TAGLINE, LOGO_PATH, PLATFORM_TITLE
 
 
 # ─── Design Tokens (LOCKED) ───
@@ -33,7 +38,8 @@ BRAND = {
 def inject_css():
     """Inject the full custom CSS theme into the Streamlit app."""
     st.markdown(
-        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">',
+        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700'
+        '&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">',
         unsafe_allow_html=True,
     )
     st.markdown(_THEME_CSS, unsafe_allow_html=True)
@@ -43,7 +49,10 @@ _THEME_CSS = """<style>
 /* -- GLOBAL OVERRIDES -- */
 
 .stApp {
-    background-color: #F7F8FA;
+    background-color: #F4F5F7;
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(199, 164, 98, 0.07), transparent),
+        linear-gradient(180deg, #F7F8FA 0%, #F0F2F5 100%);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     color: #1E293B;
     font-size: 14px;
@@ -142,8 +151,8 @@ section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover
 }
 section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"],
 section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:has(input:checked) {
-    background: rgba(79,125,243,0.12) !important;
-    border-left: 2px solid #4F7DF3 !important;
+    background: rgba(199,164,98,0.14) !important;
+    border-left: 2px solid #C7A462 !important;
 }
 section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label p {
     color: rgba(255,255,255,0.40) !important;
@@ -181,14 +190,12 @@ section[data-testid="stSidebar"] .stButton button div {
 
 .page-header {
     background: #FFFFFF;
-    padding: 22px 24px;
-    border-radius: 12px;
+    padding: 24px 28px;
+    border-radius: 14px;
     margin-bottom: 24px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-    border-bottom: 2px solid #1F2A44;
-    border-left: none;
-    border-right: none;
-    border-top: none;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+    border: 1px solid #E8EAED;
+    border-left: 4px solid #C7A462;
 }
 
 .page-header * {
@@ -571,10 +578,12 @@ hr {
 .app-footer {
     text-align: center;
     color: #94A3B8;
-    font-size: 12px;
-    font-weight: 400;
+    font-size: 11px;
+    font-weight: 500;
     font-family: 'Inter', sans-serif;
-    padding: 40px 0 16px 0;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 40px 0 20px 0;
     border-top: 1px solid #E5E7EB;
     margin-top: 48px;
 }
@@ -711,10 +720,12 @@ hr {
     margin: 32px 0 16px 0;
 }
 .dash-section-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: #1E293B;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0F172A;
     font-family: 'Inter', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 .dash-section-subtitle {
     font-size: 12px;
@@ -726,15 +737,14 @@ hr {
 /* -- Dashboard Chart Card (enhanced) -- */
 .dash-chart-card {
     background: #FFFFFF;
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 22px;
-    border: 1px solid #E5E7EB;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    border: 1px solid #E4E7EC;
+    box-shadow: none;
     margin-bottom: 16px;
-    transition: box-shadow 0.2s ease;
 }
 .dash-chart-card:hover {
-    box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+    box-shadow: none;
 }
 .dash-chart-title {
     font-size: 15px;
@@ -937,6 +947,674 @@ hr {
     gap: 12px;
     margin-top: 24px;
 }
+
+/* ═══════════════════════════════════════════════════════
+   PROFESSIONAL POLISH LAYER — final touches
+   ═══════════════════════════════════════════════════════ */
+
+/* Smoother global font rendering */
+* {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Hide Streamlit branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    height: 0 !important;
+}
+.stDeployButton {display: none !important;}
+
+/* Cleaner main content padding */
+.block-container {
+    padding-top: 2rem !important;
+    padding-bottom: 4rem !important;
+    max-width: 1440px !important;
+}
+
+/* Subtle background gradient */
+.stApp {
+    background: linear-gradient(180deg, #F7F8FA 0%, #F1F3F7 100%) !important;
+}
+
+/* Smooth all transitions */
+button, input, select, textarea, a, .kpi-card, .section-card, .dash-kpi {
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Better number input — clean borders */
+.stNumberInput input[type="number"],
+.stTextInput input[type="text"],
+.stTextArea textarea,
+.stDateInput input {
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    background: #FFFFFF !important;
+    font-family: 'Inter', -apple-system, sans-serif !important;
+    font-size: 14px !important;
+    color: #1E293B !important;
+    padding: 9px 12px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+}
+.stNumberInput input[type="number"]:focus,
+.stTextInput input[type="text"]:focus,
+.stTextArea textarea:focus,
+.stDateInput input:focus {
+    border-color: #C7A462 !important;
+    box-shadow: 0 0 0 3px rgba(199,164,98,0.15) !important;
+    outline: none !important;
+}
+
+/* Cleaner labels */
+.stNumberInput label,
+.stTextInput label,
+.stTextArea label,
+.stDateInput label,
+.stSelectbox label {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #64748B !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    margin-bottom: 4px !important;
+}
+
+/* Polished primary buttons in main content */
+.stApp:not(:has(section[data-testid="stSidebar"])) .stButton button,
+.main .stButton button {
+    background: linear-gradient(180deg, #1F2A44 0%, #1A2238 100%) !important;
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 10px 22px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 4px 12px rgba(31,42,68,0.08) !important;
+    letter-spacing: 0.01em !important;
+}
+.main .stButton button:hover {
+    background: linear-gradient(180deg, #2A3656 0%, #1F2A44 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(31,42,68,0.12) !important;
+}
+.main .stButton button:active {
+    transform: translateY(0) !important;
+}
+
+/* Polished tables / dataframes */
+.stDataFrame, [data-testid="stDataFrame"] {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    border: 1px solid #E5E7EB !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+}
+.stDataFrame thead tr th, [data-testid="stDataFrame"] thead tr th {
+    background: #F8FAFC !important;
+    color: #475569 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    border-bottom: 1px solid #E5E7EB !important;
+    padding: 10px 14px !important;
+}
+.stDataFrame tbody tr td, [data-testid="stDataFrame"] tbody tr td {
+    font-size: 13px !important;
+    color: #1E293B !important;
+    padding: 10px 14px !important;
+    border-bottom: 1px solid #F1F5F9 !important;
+}
+.stDataFrame tbody tr:hover {
+    background: #F8FAFC !important;
+}
+
+/* Polish tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background: transparent !important;
+    border-bottom: 1px solid #E5E7EB !important;
+    gap: 4px !important;
+    padding: 0 !important;
+}
+.stTabs [data-baseweb="tab"] {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 12px 18px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #64748B !important;
+    border-bottom: 2px solid transparent !important;
+    margin-bottom: -1px !important;
+    transition: all 0.15s ease !important;
+}
+.stTabs [data-baseweb="tab"]:hover {
+    color: #1E293B !important;
+    background: #F8FAFC !important;
+}
+.stTabs [aria-selected="true"] {
+    color: #1F2A44 !important;
+    border-bottom-color: #C7A462 !important;
+    font-weight: 600 !important;
+    background: transparent !important;
+}
+
+/* Polish radio buttons in main content (not sidebar) */
+.main .stRadio > div[role="radiogroup"] {
+    gap: 4px !important;
+}
+.main .stRadio > div[role="radiogroup"] > label {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    padding: 8px 14px !important;
+    transition: all 0.15s ease !important;
+}
+.main .stRadio > div[role="radiogroup"] > label:hover {
+    border-color: #C7A462 !important;
+    background: #FFFBF5 !important;
+}
+.main .stRadio > div[role="radiogroup"] > label[data-checked="true"] {
+    border-color: #C7A462 !important;
+    background: #FDF8F0 !important;
+}
+
+/* Selectbox polish */
+.stSelectbox > div > div {
+    border-radius: 8px !important;
+    border: 1px solid #E2E8F0 !important;
+    background: #FFFFFF !important;
+    min-height: 38px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+}
+.stSelectbox > div > div:hover {
+    border-color: #CBD5E1 !important;
+}
+
+/* Checkbox polish */
+.stCheckbox label {
+    font-size: 13px !important;
+    color: #1E293B !important;
+}
+
+/* Expander polish */
+.streamlit-expanderHeader, [data-testid="stExpander"] summary {
+    background: #FFFFFF !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 10px !important;
+    padding: 12px 16px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    color: #1E293B !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+}
+.streamlit-expanderHeader:hover, [data-testid="stExpander"] summary:hover {
+    background: #F8FAFC !important;
+}
+
+/* Success / Info / Warning / Error message boxes */
+.stAlert {
+    border-radius: 10px !important;
+    border: 1px solid !important;
+    padding: 12px 16px !important;
+    font-size: 13px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+}
+
+/* Toast notifications polish */
+[data-testid="stToast"] {
+    border-radius: 12px !important;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.12) !important;
+    border: 1px solid #E5E7EB !important;
+}
+
+/* KPI cards — final polish */
+.kpi-card, .dash-kpi {
+    border: 1px solid #E5E7EB !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.kpi-card:hover, .dash-kpi:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 12px 28px rgba(0,0,0,0.04) !important;
+    border-color: #CBD5E1 !important;
+}
+
+/* Section headers — refined */
+h1, h2, h3, h4 {
+    font-family: 'Inter', sans-serif !important;
+    letter-spacing: -0.02em !important;
+}
+
+/* Page header polish */
+.page-header {
+    margin-bottom: 24px !important;
+}
+
+/* Plotly chart container polish */
+.stPlotlyChart {
+    border-radius: 12px !important;
+    background: transparent !important;
+}
+
+/* Scrollbar polish */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+}
+
+/* Sidebar scrollbar — darker */
+section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.12);
+}
+section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.20);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-top: 1rem !important;
+    }
+    .kpi-card, .dash-kpi {
+        min-width: 100% !important;
+        padding: 16px !important;
+    }
+    .kpi-card .kpi-value {
+        font-size: 24px !important;
+    }
+    .kpi-card .kpi-label {
+        font-size: 11px !important;
+    }
+    /* Stack columns on mobile */
+    [data-testid="column"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+    /* Smaller page header */
+    h1 {
+        font-size: 24px !important;
+    }
+    h2 {
+        font-size: 18px !important;
+    }
+    /* Larger touch targets for buttons */
+    .stButton button {
+        min-height: 44px !important;
+        font-size: 14px !important;
+    }
+    /* Inputs full width on mobile */
+    .stNumberInput, .stTextInput, .stTextArea, .stDateInput, .stSelectbox {
+        width: 100% !important;
+    }
+    /* Hide section dividers on mobile to save space */
+    hr {
+        margin: 12px 0 !important;
+    }
+    /* Tables horizontal scroll */
+    .stDataFrame, [data-testid="stDataFrame"] {
+        overflow-x: auto !important;
+    }
+    /* Sidebar overlay style on mobile */
+    section[data-testid="stSidebar"] {
+        width: 280px !important;
+        min-width: 280px !important;
+    }
+    /* Tabs scrollable on mobile */
+    .stTabs [data-baseweb="tab-list"] {
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        white-space: nowrap !important;
+        min-width: max-content !important;
+    }
+    /* Plotly charts responsive */
+    .stPlotlyChart {
+        height: auto !important;
+    }
+    /* Smaller table cells */
+    .stDataFrame thead tr th, [data-testid="stDataFrame"] thead tr th {
+        font-size: 10px !important;
+        padding: 8px !important;
+    }
+    .stDataFrame tbody tr td, [data-testid="stDataFrame"] tbody tr td {
+        font-size: 12px !important;
+        padding: 8px !important;
+    }
+}
+
+/* Tablet adjustments */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .kpi-card, .dash-kpi {
+        min-width: 45% !important;
+    }
+    .block-container {
+        max-width: 100% !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+}
+
+/* Print styles — clean PDF output via Cmd+P / Ctrl+P */
+@media print {
+    /* Hide chrome */
+    section[data-testid="stSidebar"],
+    header[data-testid="stHeader"],
+    .stDeployButton,
+    [data-testid="collapsedControl"],
+    .stButton,
+    .streamlit-expanderHeader,
+    [data-testid="stExpander"] {
+        display: none !important;
+    }
+    /* Reset background */
+    .stApp, .main, .block-container {
+        background: #FFFFFF !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    /* Make sure content fits */
+    .main {
+        margin-left: 0 !important;
+    }
+    /* Avoid breaking inside cards */
+    .kpi-card, .dash-kpi, .section-card {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        box-shadow: none !important;
+        border: 1px solid #E5E7EB !important;
+    }
+    /* Force black ink for readability */
+    h1, h2, h3, h4, p {
+        color: #000 !important;
+    }
+    /* Smaller font for printing */
+    body {
+        font-size: 11px !important;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════
+   CORPORATE PREMIUM — Metz Culinary Management
+   ═══════════════════════════════════════════════════════ */
+
+.stApp {
+    background: #F6F7F9 !important;
+    background-image: none !important;
+}
+
+.block-container {
+    padding-top: 1.75rem !important;
+    padding-left: 2.5rem !important;
+    padding-right: 2.5rem !important;
+    max-width: 1320px !important;
+}
+
+/* Sidebar — executive dark */
+section[data-testid="stSidebar"] {
+    background: #151D2E !important;
+    border-right: 1px solid rgba(255,255,255,0.04) !important;
+    min-width: 272px !important;
+    width: 272px !important;
+}
+
+.nav-group-label {
+    color: rgba(255,255,255,0.32) !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    padding: 22px 20px 8px 20px !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.nav-active-item {
+    background: rgba(199,164,98,0.10) !important;
+    border-left: 2px solid #C7A462 !important;
+    padding: 10px 18px 10px 20px !important;
+    margin: 2px 12px 2px 0 !important;
+    border-radius: 0 8px 8px 0 !important;
+    color: #FFFFFF !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    font-family: 'Inter', sans-serif !important;
+    letter-spacing: 0.01em !important;
+}
+
+/* Cards — flat corporate */
+.section-card,
+.section-card-accent,
+.page-header,
+.date-nav,
+.flash-panel,
+.weather-card {
+    box-shadow: none !important;
+    border: 1px solid #E4E7EC !important;
+    border-radius: 10px !important;
+}
+.section-card:hover {
+    box-shadow: none !important;
+}
+
+.page-header {
+    border-left: none !important;
+    border-top: 3px solid #C7A462 !important;
+    padding: 26px 32px !important;
+    margin-bottom: 28px !important;
+}
+
+.page-header .ph-eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #C7A462;
+    margin: 0 0 8px 0;
+    font-family: 'Inter', sans-serif;
+}
+.page-header .ph-title {
+    font-size: 26px;
+    font-weight: 600;
+    color: #0F172A;
+    margin: 0;
+    letter-spacing: -0.03em;
+    line-height: 1.25;
+    font-family: 'Inter', sans-serif;
+}
+.page-header .ph-sub {
+    font-size: 14px;
+    font-weight: 400;
+    color: #64748B;
+    margin: 8px 0 0 0;
+    line-height: 1.5;
+}
+
+/* KPI — minimal */
+.kpi-card, .dash-kpi, div[data-testid="stMetric"] {
+    box-shadow: none !important;
+    border: 1px solid #E4E7EC !important;
+    border-radius: 10px !important;
+    background: #FFFFFF !important;
+}
+.kpi-card:hover, .dash-kpi:hover, div[data-testid="stMetric"]:hover {
+    transform: none !important;
+    border-color: #D1D5DB !important;
+    box-shadow: none !important;
+}
+
+.dash-kpi::before { height: 2px !important; }
+.dash-kpi.accent-blue::before,
+.dash-kpi.accent-navy::before { background: #1F2A44 !important; }
+.dash-kpi.accent-gold::before { background: #C7A462 !important; }
+
+/* Buttons — primary vs secondary */
+[data-testid="stMain"] .stButton > button[kind="primary"],
+[data-testid="stMain"] .stButton button[data-testid="baseButton-primary"] {
+    background: #1F2A44 !important;
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+    border: 1px solid #1F2A44 !important;
+    border-radius: 8px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 20px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+[data-testid="stMain"] .stButton > button[kind="primary"]:hover,
+[data-testid="stMain"] .stButton button[data-testid="baseButton-primary"]:hover {
+    background: #2A3654 !important;
+    border-color: #2A3654 !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+[data-testid="stMain"] .stButton > button:not([kind="primary"]):not([data-testid="baseButton-primary"]) {
+    background: #FFFFFF !important;
+    color: #1F2A44 !important;
+    -webkit-text-fill-color: #1F2A44 !important;
+    border: 1px solid #D1D5DB !important;
+    border-radius: 8px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 16px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+[data-testid="stMain"] .stButton > button:not([kind="primary"]):not([data-testid="baseButton-primary"]):hover {
+    background: #F8FAFC !important;
+    border-color: #94A3B8 !important;
+    color: #0F172A !important;
+    -webkit-text-fill-color: #0F172A !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+/* Legacy global button override — disable heavy gradients */
+.stButton > button:not([kind="primary"]) {
+    background: #FFFFFF !important;
+    color: #1F2A44 !important;
+    -webkit-text-fill-color: #1F2A44 !important;
+    border: 1px solid #D1D5DB !important;
+    box-shadow: none !important;
+    height: 40px !important;
+    transform: none !important;
+}
+.stButton > button[kind="primary"] {
+    background: #1F2A44 !important;
+    box-shadow: none !important;
+    height: 42px !important;
+    transform: none !important;
+}
+
+/* Tabs — underline only */
+.stTabs [data-baseweb="tab-list"] {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid #E4E7EC !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+}
+.stTabs [aria-selected="true"] {
+    background: transparent !important;
+    color: #0F172A !important;
+    box-shadow: none !important;
+    border-bottom: 2px solid #C7A462 !important;
+}
+
+/* Streamlit chrome */
+header[data-testid="stHeader"] { display: none !important; }
+#MainMenu, footer, .stDeployButton, [data-testid="stToolbar"] {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Alerts — subtle */
+div[data-testid="stAlert"] {
+    border-radius: 8px !important;
+    font-size: 13px !important;
+}
+
+/* Login shell */
+.metz-login-shell {
+    min-height: 88vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+}
+.metz-login-card {
+    background: #FFFFFF;
+    border: 1px solid #E4E7EC;
+    border-radius: 12px;
+    padding: 48px 44px 40px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.06);
+}
+.metz-login-card::before {
+    content: '';
+    display: block;
+    height: 3px;
+    background: linear-gradient(90deg, #C7A462 0%, #E8D5A8 50%, #C7A462 100%);
+    margin: -48px -44px 32px -44px;
+    border-radius: 12px 12px 0 0;
+}
+.metz-login-eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #C7A462;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.metz-login-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #0F172A;
+    text-align: center;
+    letter-spacing: -0.03em;
+    margin: 0 0 8px 0;
+}
+.metz-login-sub {
+    font-size: 14px;
+    color: #64748B;
+    text-align: center;
+    line-height: 1.55;
+    margin: 0 0 32px 0;
+}
+
+.app-footer {
+    border-top: 1px solid #E4E7EC !important;
+    color: #94A3B8 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.1em !important;
+    padding: 32px 0 24px !important;
+    margin-top: 56px !important;
+}
 </style>
 """
 
@@ -945,31 +1623,27 @@ hr {
 
 
 def page_header(title, subtitle="", metadata_right=""):
-    """Render a branded page header with optional right-aligned metadata."""
+    """Render a branded corporate page header."""
     sub_html = ""
     if subtitle:
-        sub_html = (
-            '<p style="color:#64748B;font-size:14px;font-weight:400;'
-            'margin:4px 0 0 0;font-family:Inter,sans-serif;">{}</p>'
-        ).format(subtitle)
+        sub_html = '<p class="ph-sub">{}</p>'.format(subtitle)
     meta_html = ""
     if metadata_right:
         meta_html = (
-            '<div style="text-align:right;color:#64748B;font-size:12px;'
-            'font-weight:500;letter-spacing:0.04em;white-space:nowrap;">'
-            '{}</div>'
+            '<div style="text-align:right;font-size:12px;font-weight:500;'
+            'color:#64748B;letter-spacing:0.02em;white-space:nowrap;'
+            'padding-top:4px;">{}</div>'
         ).format(metadata_right)
     st.markdown(
         '<div class="page-header" style="display:flex;justify-content:space-between;'
-        'align-items:center;">'
+        'align-items:flex-start;">'
         '<div>'
-        '<p style="color:#1E293B;font-size:28px;font-weight:700;'
-        'font-family:Inter,sans-serif;margin:0;padding:0;line-height:1.3;'
-        'text-decoration:none !important;font-style:normal;">{title}</p>'
-        '{sub}'
+        '<p class="ph-eyebrow">{}</p>'
+        '<h1 class="ph-title">{}</h1>'
+        '{}'
         '</div>'
-        '{meta}'
-        '</div>'.format(title=title, sub=sub_html, meta=meta_html),
+        '{}'
+        '</div>'.format(APP_NAME.upper(), title, sub_html, meta_html),
         unsafe_allow_html=True,
     )
 
@@ -978,9 +1652,11 @@ def section_title(icon, title, anchor_id=""):
     """Render a styled section title with optional anchor for sidebar scroll-to."""
     aid = anchor_id or title.lower().replace(" ", "-").replace("/", "-")
     st.markdown(
-        '<div id="{aid}" style="margin:40px 0 16px 0;scroll-margin-top:80px;">'
-        '<span style="font-size:20px;font-weight:600;color:#1E293B;'
-        'font-family:Inter,sans-serif;letter-spacing:-0.01em;">{title}</span>'
+        '<div id="{aid}" style="margin:36px 0 14px 0;scroll-margin-top:80px;'
+        'padding-bottom:10px;border-bottom:1px solid #E4E7EC;">'
+        '<span style="font-size:13px;font-weight:600;color:#0F172A;'
+        'font-family:Inter,sans-serif;letter-spacing:0.04em;'
+        'text-transform:uppercase;">{title}</span>'
         '</div>'.format(aid=aid, title=title),
         unsafe_allow_html=True,
     )
@@ -1031,15 +1707,13 @@ def kpi_card(label, value, change="", color_class=""):
         ).format(change_color, change_str)
 
     st.markdown(
-        '<div style="background:#FFFFFF;border-radius:12px;padding:22px;'
-        'border:1px solid #E5E7EB;box-shadow:0 4px 12px rgba(0,0,0,0.04);'
-        'text-align:center;border-top:3px solid {accent};'
-        'transition:box-shadow 0.2s ease;">'
-        '<div style="font-size:12px;font-weight:500;text-transform:uppercase;'
-        'letter-spacing:0.04em;color:#94A3B8;margin-bottom:8px;'
+        '<div class="kpi-card" style="padding:20px 22px;text-align:left;'
+        'border-top:2px solid {accent};">'
+        '<div style="font-size:10px;font-weight:600;text-transform:uppercase;'
+        'letter-spacing:0.1em;color:#94A3B8;margin-bottom:10px;'
         'font-family:Inter,sans-serif;">{label}</div>'
-        '<div style="font-size:32px;font-weight:700;color:#1E293B;'
-        'white-space:nowrap;line-height:1.2;font-family:Inter,sans-serif;">'
+        '<div style="font-size:28px;font-weight:600;color:#0F172A;'
+        'letter-spacing:-0.02em;line-height:1.2;font-family:Inter,sans-serif;">'
         '{value}</div>'
         '{change}'
         '</div>'.format(accent=accent, label=label, value=value, change=change_html),
@@ -1096,8 +1770,8 @@ def empty_state(message, subtitle=""):
         ).format(subtitle)
     st.markdown(
         '<div style="text-align:center;padding:48px 24px;color:#64748B;'
-        'font-size:15px;font-weight:500;background:#F7F8FA;border-radius:12px;'
-        'border:1px dashed #D1D5DB;font-family:Inter,sans-serif;">'
+        'font-size:14px;font-weight:500;background:#FAFBFC;border-radius:10px;'
+        'border:1px solid #E4E7EC;font-family:Inter,sans-serif;">'
         '<p style="margin:0;">{}</p>'
         '{}'
         '</div>'.format(message, sub_html),
@@ -1141,12 +1815,47 @@ def event_reminders(conn):
         unsafe_allow_html=True,
     )
 
+def sidebar_brand():
+    """Render Metz logo and product name at the top of the sidebar."""
+    logo_html = (
+        '<div style="width:40px;height:40px;border-radius:10px;'
+        'background:linear-gradient(145deg,#3D2B1F 0%,#5C4033 100%);'
+        'display:flex;align-items:center;justify-content:center;'
+        'font-size:11px;font-weight:800;color:#C7A462;flex-shrink:0;'
+        'letter-spacing:0.04em;border:1px solid rgba(199,164,98,0.35);">M</div>'
+    )
+    if os.path.exists(LOGO_PATH):
+        with open(LOGO_PATH, "rb") as fh:
+            b64 = base64.b64encode(fh.read()).decode()
+        logo_html = (
+            '<img src="data:image/png;base64,{}" alt="Metz" '
+            'style="width:40px;height:40px;object-fit:contain;flex-shrink:0;'
+            'border-radius:8px;background:#fff;padding:4px;"/>'
+        ).format(b64)
+
+    st.sidebar.markdown(
+        '<div style="padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">'
+        '<div style="display:flex;align-items:center;gap:14px;">'
+        '{logo}'
+        '<div style="min-width:0;">'
+        '<div style="font-size:14px;font-weight:600;color:#FFFFFF;'
+        'letter-spacing:-0.02em;font-family:Inter,sans-serif;">{name}</div>'
+        '<div style="font-size:9px;font-weight:600;color:rgba(199,164,98,0.85);'
+        'text-transform:uppercase;letter-spacing:0.14em;margin-top:4px;">'
+        '{tag}</div></div></div>'
+        '<div style="height:1px;background:linear-gradient(90deg,transparent,'
+        'rgba(199,164,98,0.5),transparent);margin-top:18px;"></div>'
+        '</div>'.format(logo=logo_html, name=APP_NAME, tag=APP_TAGLINE),
+        unsafe_allow_html=True,
+    )
+
+
 def app_footer():
     """Render app footer."""
     st.markdown(
         '<div class="app-footer">'
-        'Campus Dining Operations Platform &middot; Metz Culinary Management'
-        '</div>',
+        '{platform} &middot; {company}'
+        '</div>'.format(platform=PLATFORM_TITLE, company=APP_FULL_NAME),
         unsafe_allow_html=True,
     )
 

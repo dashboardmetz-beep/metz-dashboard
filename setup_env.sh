@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════
-# Campus Dining Budget App — Environment Setup
+# Metz Operations Platform — Environment Setup
 # ═══════════════════════════════════════════════════════
 #
 # INSTRUCTIONS:
@@ -13,6 +13,10 @@
 #   Go to https://portal.azure.com → Microsoft Entra ID
 #   → App registrations → your app → Overview page
 # ═══════════════════════════════════════════════════════
+
+# ── Anthropic API (AI Insights + Operations Assistant) ──
+# Get a key at https://console.anthropic.com
+export ANTHROPIC_API_KEY="PASTE_YOUR_ANTHROPIC_KEY_HERE"
 
 # ── Microsoft Graph API (Outlook Email Integration) ──
 # Used for: US Foods invoices, CTUIT ops statements, Odyssey meal plan data

@@ -1,15 +1,20 @@
 """
-Campus Dining Operations Platform - Main Router
-Slim entry point: login, grouped navigation with sub-sections, page dispatch.
+Metz Operations Platform — Main Router
+Login, grouped navigation with sub-sections, page dispatch.
 """
 
 import streamlit as st
 from auth import login_page, render_user_sidebar, can_access_imports
-from styles import inject_css, app_footer
+from config import APP_NAME, PAGE_ICON, PLATFORM_TITLE
+from styles import inject_css, app_footer, sidebar_brand
 import db
 
-st.set_page_config(page_title="Campus Dining", layout="wide",
-                   initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title=APP_NAME,
+    page_icon=PAGE_ICON,
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 inject_css()
 
 # ─── Sub-section definitions ───
@@ -22,9 +27,21 @@ _PAGE_SUBSECTIONS = {
         "Financial Summary", "Operational Metrics", "Budget & Projections",
     ],
     "Dashboard": [
+        "Operations Dashboard",
         "Overview", "Operations Overview",
         "Accounts Receivable", "Meal Plan Tracker",
         "Digital Meal Counts", "Tender Totals",
+    ],
+    "Planning": [
+        "Calendar",
+        "Pre-Service Meeting",
+        "Catering & Events",
+        "Waste Tracking",
+    ],
+    "Communication": [
+        "Shift Communication",
+        "Contract Areas",
+        "Safety",
     ],
     "Data Import": [
         "CTUIT — Weekly Budget", "CTUIT — Consolidated",
@@ -37,10 +54,7 @@ _PAGE_SUBSECTIONS = {
 def _nav_group(label):
     """Render a navigation group label in the sidebar."""
     st.sidebar.markdown(
-        '<div style="color:rgba(255,255,255,0.4);font-size:11px;font-weight:600;'
-        'text-transform:uppercase;letter-spacing:0.08em;'
-        'padding:20px 16px 6px 16px;font-family:Inter,sans-serif;">'
-        '{}</div>'.format(label),
+        '<div class="nav-group-label">{}</div>'.format(label),
         unsafe_allow_html=True,
     )
 
@@ -50,20 +64,15 @@ def _nav_item(name, current_page):
     is_active = current_page == name
     if is_active:
         st.sidebar.markdown(
-            '<div style="background:rgba(255,255,255,0.08);'
-            'border-left:3px solid #C7A462;padding:10px 16px;'
-            'color:#FFFFFF;font-size:14px;font-weight:600;'
-            'font-family:Inter,sans-serif;margin:1px 0;border-radius:0 6px 6px 0;">'
-            '{}</div>'.format(name),
+            '<div class="nav-active-item">{}</div>'.format(name),
             unsafe_allow_html=True,
         )
         return False
-    else:
-        return st.sidebar.button(
-            name,
-            key="nav_{}".format(name.replace(" ", "_").lower()),
-            use_container_width=True,
-        )
+    return st.sidebar.button(
+        name,
+        key="nav_{}".format(name.replace(" ", "_").lower()),
+        use_container_width=True,
+    )
 
 
 def _nav_subsections(page_name):
@@ -100,6 +109,35 @@ def _nav_item_with_subs(name, current_page):
     return False
 
 
+def _dispatch_planning(conn, user, subsection):
+    """Route Planning sub-sections to their views."""
+    if subsection == "Calendar":
+        from views.calendar_view import render as calendar_render
+        calendar_render(conn, user)
+    elif subsection == "Pre-Service Meeting":
+        from views.preservice_view import render as preservice_render
+        preservice_render(conn, user)
+    elif subsection == "Catering & Events":
+        from views.catering_view import render as catering_render
+        catering_render(conn, user)
+    elif subsection == "Waste Tracking":
+        from views.waste_view import render as waste_render
+        waste_render(conn, user)
+
+
+def _dispatch_communication(conn, user, subsection):
+    """Route Communication sub-sections to their views."""
+    if subsection == "Shift Communication":
+        from views.shift_comm_view import render as shift_render
+        shift_render(conn, user)
+    elif subsection == "Contract Areas":
+        from views.contacts_view import render as contacts_render
+        contacts_render(conn, user)
+    elif subsection == "Safety":
+        from views.safety_view import render as safety_render
+        safety_render(conn, user)
+
+
 def main():
     conn = db.get_conn()
 
@@ -128,29 +166,17 @@ def main():
             if new_files:
                 results = auto_import_all(conn)
                 for r in results:
-                    if r.get('records', 0) > 0:
+                    if r.get("records", 0) > 0:
                         st.toast(
                             "Imported {} ({} records)".format(
-                                r['type'], r['records']),
+                                r["type"], r["records"]
+                            ),
                             icon="✅",
                         )
         except Exception:
             pass
 
-    # ─── Sidebar Branding ───
-    st.sidebar.markdown(
-        '<div style="display:flex;align-items:center;gap:12px;'
-        'padding:20px 20px 16px;">'
-        '<div style="width:34px;height:34px;border-radius:8px;'
-        'background:linear-gradient(135deg,#4F7DF3 0%,#6C8FF8 100%);'
-        'display:flex;align-items:center;justify-content:center;'
-        'font-size:12px;font-weight:800;color:#fff;flex-shrink:0;">'
-        'CD</div>'
-        '<span style="font-size:15px;font-weight:700;color:#FFFFFF;'
-        'font-family:Inter,-apple-system,sans-serif;letter-spacing:-.2px;">'
-        'Campus Dining</span></div>',
-        unsafe_allow_html=True,
-    )
+    sidebar_brand()
 
     # ─── Navigation ───
     current = st.session_state.current_page
@@ -162,11 +188,17 @@ def main():
                 st.session_state.current_page = item
                 st.session_state.current_subsection = _PAGE_SUBSECTIONS[item][0]
                 st.rerun()
-        else:
-            if _nav_item(item, current):
-                st.session_state.current_page = item
-                st.session_state.current_subsection = None
-                st.rerun()
+        elif _nav_item(item, current):
+            st.session_state.current_page = item
+            st.session_state.current_subsection = None
+            st.rerun()
+
+    _nav_group("Forecasting")
+    for item in ["Forecast & Allowable", "YoY & Alerts"]:
+        if _nav_item(item, current):
+            st.session_state.current_page = item
+            st.session_state.current_subsection = None
+            st.rerun()
 
     _nav_group("Management")
     for item in ["Inventory", "Checklists", "Scheduling", "Training"]:
@@ -192,7 +224,9 @@ def main():
             st.session_state.current_subsection = _PAGE_SUBSECTIONS["Data Import"][0]
             st.rerun()
 
-    # ─── User Card + Sign Out (bottom) ───
+    from copilot_ui import render_copilot_panel
+    render_copilot_panel(conn, user, st.session_state.current_page, user.get("department"))
+
     st.sidebar.markdown(
         '<div style="border-top:1px solid rgba(255,255,255,0.06);'
         'margin:16px 16px 0 16px;"></div>',
@@ -215,18 +249,12 @@ def main():
     elif page == "Dashboard":
         from views.dashboard import page_dashboard
         page_dashboard(conn, user)
-    elif page == "Calendar":
-        from views.calendar_view import render as calendar_render
-        calendar_render(conn, user)
-    elif page == "Pre-Service Meeting":
-        from views.preservice_view import render as preservice_render
-        preservice_render(conn, user)
-    elif page == "Shift Communication":
-        from views.shift_comm_view import render as shift_render
-        shift_render(conn, user)
-    elif page == "Contract Areas":
-        from views.contacts_view import render as contacts_render
-        contacts_render(conn, user)
+    elif page == "Forecast & Allowable":
+        from views.forecast_view import render as forecast_render
+        forecast_render(conn, user)
+    elif page == "YoY & Alerts":
+        from views.yoy_view import render as yoy_render
+        yoy_render(conn, user)
     elif page == "Inventory":
         from views.inventory_view import render as inventory_render
         inventory_render(conn, user)
@@ -239,12 +267,20 @@ def main():
     elif page == "Training":
         from views.training_view import render as training_render
         training_render(conn, user)
+    elif page == "Planning":
+        subsection = st.session_state.get(
+            "current_subsection", _PAGE_SUBSECTIONS["Planning"][0]
+        )
+        _dispatch_planning(conn, user, subsection)
+    elif page == "Communication":
+        subsection = st.session_state.get(
+            "current_subsection", _PAGE_SUBSECTIONS["Communication"][0]
+        )
+        _dispatch_communication(conn, user, subsection)
     elif page == "Data Import":
         from views.data_import import page_data_import
         page_data_import(conn, user)
 
-    from copilot_ui import render_copilot_panel
-    render_copilot_panel(conn, user, page, user.get("department"))
     app_footer()
 
 

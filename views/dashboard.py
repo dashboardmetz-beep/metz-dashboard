@@ -132,6 +132,11 @@ def _render_revenue_donut(dept_data):
 def page_dashboard(conn, user):
     subsection = st.session_state.get("current_subsection", "Overview")
 
+    if subsection == "Operations Dashboard":
+        from views.operations_dashboard_view import render as ops_dash_render
+        ops_dash_render(conn, user)
+        return
+
     if subsection == "Operations Overview":
         page_header("Operations Overview", "Location-level KPIs, gauges & action flags")
         # Week navigation

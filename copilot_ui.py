@@ -1,367 +1,399 @@
 """
-AI Copilot UI — Draggable floating button using components.html + side panel.
-The button is a real HTML element with JavaScript drag support.
+AI Copilot UI — corporate sidebar launcher + executive dialog.
 """
 
-import streamlit as st
-import streamlit.components.v1 as components
-from streamlit_float import float_init, float_css_helper
+import html
 
+import streamlit as st
+
+from config import APP_FULL_NAME, COPILOT_SUBTITLE, COPILOT_TITLE, PLATFORM_TITLE
 from copilot import (
+    api_key_status_message,
     get_anthropic_client,
     get_suggested_questions,
     run_copilot_turn,
 )
 
-
-# Draggable button HTML — runs in iframe with full JS support
-_DRAGGABLE_BUTTON_HTML = """
-<div id="dragBtn" style="
-    position: fixed;
-    bottom: 28px;
-    right: 28px;
-    z-index: 999999;
-    cursor: grab;
-    user-select: none;
-    touch-action: none;
-">
-    <button onclick="window.parent.postMessage({type:'copilot_open'}, '*')" style="
-        background: #FFFFFF;
-        color: #1E293B;
-        border: 1px solid #E5E7EB;
-        border-radius: 28px;
-        padding: 12px 22px;
-        font-size: 14px;
-        font-weight: 600;
-        font-family: 'Inter', -apple-system, sans-serif;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        cursor: pointer;
-        transition: box-shadow 0.2s, transform 0.2s;
-        letter-spacing: 0.2px;
-        white-space: nowrap;
-    " onmouseover="this.style.boxShadow='0 6px 28px rgba(0,0,0,0.12)';this.style.borderColor='#C7A462'"
-      onmouseout="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.08)';this.style.borderColor='#E5E7EB'"
-    >💬 Ask Help</button>
-</div>
-
-<script>
-(function() {
-    var el = document.getElementById('dragBtn');
-    var isDragging = false;
-    var wasDragged = false;
-    var startX, startY, startLeft, startTop;
-
-    el.addEventListener('mousedown', function(e) {
-        isDragging = true;
-        wasDragged = false;
-        startX = e.clientX;
-        startY = e.clientY;
-        var rect = el.getBoundingClientRect();
-        startLeft = rect.left;
-        startTop = rect.top;
-        el.style.cursor = 'grabbing';
-        el.style.transition = 'none';
-        e.preventDefault();
-    });
-
-    document.addEventListener('mousemove', function(e) {
-        if (!isDragging) return;
-        var dx = e.clientX - startX;
-        var dy = e.clientY - startY;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wasDragged = true;
-        el.style.right = 'auto';
-        el.style.bottom = 'auto';
-        el.style.left = (startLeft + dx) + 'px';
-        el.style.top = (startTop + dy) + 'px';
-        e.preventDefault();
-    });
-
-    document.addEventListener('mouseup', function() {
-        if (isDragging) {
-            isDragging = false;
-            el.style.cursor = 'grab';
-            el.style.transition = '';
-        }
-    });
-
-    // Touch support for mobile
-    el.addEventListener('touchstart', function(e) {
-        isDragging = true;
-        wasDragged = false;
-        var touch = e.touches[0];
-        startX = touch.clientX;
-        startY = touch.clientY;
-        var rect = el.getBoundingClientRect();
-        startLeft = rect.left;
-        startTop = rect.top;
-        el.style.transition = 'none';
-    }, {passive: false});
-
-    document.addEventListener('touchmove', function(e) {
-        if (!isDragging) return;
-        var touch = e.touches[0];
-        var dx = touch.clientX - startX;
-        var dy = touch.clientY - startY;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wasDragged = true;
-        el.style.right = 'auto';
-        el.style.bottom = 'auto';
-        el.style.left = (startLeft + dx) + 'px';
-        el.style.top = (startTop + dy) + 'px';
-        e.preventDefault();
-    }, {passive: false});
-
-    document.addEventListener('touchend', function() {
-        isDragging = false;
-        el.style.transition = '';
-    });
-
-    // Prevent click after drag
-    el.querySelector('button').addEventListener('click', function(e) {
-        if (wasDragged) {
-            e.stopPropagation();
-            e.preventDefault();
-            wasDragged = false;
-        }
-    }, true);
-})();
-</script>
-
+_CORPORATE_COPILOT_CSS = """
 <style>
-body { margin: 0; padding: 0; overflow: hidden; background: transparent; }
-</style>
-"""
-
-# Panel CSS
-_PANEL_STYLE = """
-<style>
-.copilot-panel-container button[kind="secondary"] {
-    background: #F8F9FB !important;
-    border: 1px solid #E8EAF0 !important;
-    border-radius: 16px !important;
-    color: #374151 !important;
+/* Sidebar — Insights launcher */
+section[data-testid="stSidebar"] .copilot-launch-wrap {
+    padding: 4px 12px 12px;
+}
+section[data-testid="stSidebar"] .copilot-launch-wrap + div .stButton > button {
+    background: rgba(199, 164, 98, 0.12) !important;
+    border: 1px solid rgba(199, 164, 98, 0.35) !important;
+    border-radius: 8px !important;
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
     font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    box-shadow: none !important;
+    transition: background 0.15s ease, border-color 0.15s ease !important;
+}
+section[data-testid="stSidebar"] .copilot-launch-wrap + div .stButton > button:hover {
+    background: rgba(199, 164, 98, 0.2) !important;
+    border-color: #C7A462 !important;
+    transform: none !important;
+}
+
+/* Dialog shell */
+[data-testid="stDialog"] {
+    border-radius: 12px !important;
+    border: 1px solid #E4E7EC !important;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.14) !important;
+    overflow: hidden !important;
+}
+[data-testid="stDialog"] > div {
+    background: #FAFBFC !important;
+}
+[data-testid="stDialog"] header {
+    background: #FFFFFF !important;
+    border-bottom: 1px solid #E4E7EC !important;
+    padding: 0 !important;
+}
+[data-testid="stDialog"] header h2 {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #0F172A !important;
+    letter-spacing: -0.02em !important;
+}
+
+.copilot-shell {
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+.copilot-header {
+    background: #FFFFFF;
+    border-bottom: 1px solid #E4E7EC;
+    padding: 0 0 20px 0;
+    margin: -8px 0 20px 0;
+}
+.copilot-header::before {
+    content: '';
+    display: block;
+    height: 3px;
+    background: linear-gradient(90deg, #1F2A44 0%, #C7A462 50%, #1F2A44 100%);
+    margin: 0 -1rem 20px -1rem;
+}
+.copilot-eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #C7A462;
+    margin: 0 0 6px 0;
+}
+.copilot-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #0F172A;
+    letter-spacing: -0.03em;
+    margin: 0;
+    line-height: 1.25;
+}
+.copilot-sub {
+    font-size: 13px;
+    color: #64748B;
+    margin: 8px 0 0 0;
+    line-height: 1.5;
+}
+.copilot-context {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 6px 12px;
+    background: #F1F3F6;
+    border: 1px solid #E4E7EC;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.copilot-disclaimer {
+    font-size: 11px;
+    color: #94A3B8;
+    margin-top: 14px;
+    line-height: 1.45;
+    border-top: 1px solid #EEF0F3;
+    padding-top: 12px;
+}
+
+.copilot-prompt-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #94A3B8;
+    margin: 0 0 10px 0;
+}
+
+.copilot-setup {
+    background: #FFFFFF;
+    border: 1px solid #E4E7EC;
+    border-left: 3px solid #C7A462;
+    border-radius: 8px;
+    padding: 20px 22px;
+    margin: 8px 0;
+}
+.copilot-setup h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0F172A;
+}
+
+/* Dialog buttons */
+[data-testid="stDialog"] .stButton > button[kind="secondary"] {
+    background: #FFFFFF !important;
+    border: 1px solid #D1D5DB !important;
+    color: #475569 !important;
+    -webkit-text-fill-color: #475569 !important;
+    font-size: 12px !important;
     font-weight: 500 !important;
-    padding: 12px 16px !important;
-    text-align: left !important;
-    transition: all 0.15s ease !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    border-radius: 6px !important;
     box-shadow: none !important;
 }
-.copilot-panel-container button[kind="secondary"]:hover {
-    background: #F1F3F7 !important;
+[data-testid="stDialog"] .copilot-prompts .stButton > button {
+    background: #FFFFFF !important;
+    border: 1px solid #E4E7EC !important;
+    color: #1F2A44 !important;
+    -webkit-text-fill-color: #1F2A44 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding: 12px 16px !important;
+    height: auto !important;
+    min-height: 44px !important;
+    line-height: 1.45 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    white-space: normal !important;
+}
+[data-testid="stDialog"] .copilot-prompts .stButton > button:hover {
     border-color: #C7A462 !important;
+    background: #FFFBF7 !important;
+}
+
+/* Chat */
+[data-testid="stDialog"] [data-testid="stChatMessage"] {
+    background: transparent !important;
+    border: none !important;
+    padding: 8px 0 !important;
+}
+[data-testid="stDialog"] [data-testid="stChatMessageAvatarIcon"] {
+    background: #1F2A44 !important;
+    color: #C7A462 !important;
+    border: 1px solid rgba(199, 164, 98, 0.4) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+}
+[data-testid="stDialog"] [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarIcon"]) 
+    + div [data-testid="stMarkdownContainer"] {
+    background: #FFFFFF;
+    border: 1px solid #E4E7EC;
+    border-radius: 8px;
+    padding: 12px 16px;
+}
+[data-testid="stDialog"] [data-testid="stChatInput"] textarea {
+    border: 1px solid #E4E7EC !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    background: #FFFFFF !important;
+}
+[data-testid="stDialog"] [data-testid="stChatInput"] textarea:focus {
+    border-color: #C7A462 !important;
+    box-shadow: 0 0 0 3px rgba(199, 164, 98, 0.12) !important;
 }
 </style>
 """
+
+
+def _inject_copilot_styles():
+    st.markdown(_CORPORATE_COPILOT_CSS, unsafe_allow_html=True)
 
 
 def _init_session_state():
     if "copilot_messages" not in st.session_state:
         st.session_state.copilot_messages = []
-    if "copilot_client" not in st.session_state:
-        st.session_state.copilot_client = None
     if "copilot_pending_question" not in st.session_state:
         st.session_state.copilot_pending_question = None
-    if "copilot_open" not in st.session_state:
-        st.session_state.copilot_open = False
 
 
-def render_copilot_panel(conn, user, current_page, current_department):
-    _init_session_state()
-    float_init()
-    st.markdown(_PANEL_STYLE, unsafe_allow_html=True)
-
-    # ── Draggable floating button (when panel is closed) ──
-    if not st.session_state.copilot_open:
-        # Render draggable button via components.html (supports JS)
-        components.html(_DRAGGABLE_BUTTON_HTML, height=0, scrolling=False)
-
-        # Hidden Streamlit button to receive the open command
-        # The JS postMessage triggers this via query params
-        open_col = st.container()
-        with open_col:
-            if st.button("Open Ask Help", key="copilot_open_btn"):
-                if st.session_state.copilot_client is None:
-                    st.session_state.copilot_client = get_anthropic_client()
-                st.session_state.copilot_open = True
-                st.rerun()
-        # Hide this button visually
-        open_col.float(float_css_helper(
-            bottom="-100px",
-            right="-100px",
-            css="opacity: 0 !important; pointer-events: none !important;"
-        ))
-
-        # Also provide a visible fallback button in case postMessage doesn't work
-        fallback = st.container()
-        with fallback:
-            if st.button("💬", key="copilot_fallback_btn", help="Open Ask Help"):
-                if st.session_state.copilot_client is None:
-                    st.session_state.copilot_client = get_anthropic_client()
-                st.session_state.copilot_open = True
-                st.rerun()
-        fallback.float(float_css_helper(
-            bottom="28px",
-            left="240px",
-            css="""
-                z-index: 999998;
-                background: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
-                padding: 0 !important;
-                button {
-                    background: #FFFFFF !important;
-                    color: #1E293B !important;
-                    border: 1px solid #E5E7EB !important;
-                    border-radius: 50% !important;
-                    width: 44px !important;
-                    height: 44px !important;
-                    padding: 0 !important;
-                    font-size: 20px !important;
-                    box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important;
-                    cursor: pointer !important;
-                }
-                button:hover {
-                    border-color: #C7A462 !important;
-                }
-            """
-        ))
-        return
-
-    # ── Side panel (open) ──
-    panel = st.container()
-    with panel:
-        st.markdown('<div class="copilot-panel-container">', unsafe_allow_html=True)
-
-        user_name = user.get("display_name", "there") if user else "there"
-        first_name = user_name.split()[0] if user_name else "there"
-        messages = st.session_state.copilot_messages
-        display_messages = _get_display_messages(messages)
-
-        if st.button("✕", key="copilot_close"):
-            st.session_state.copilot_open = False
-            st.rerun()
-
-        st.markdown(
-            '<div style="padding:8px 0 16px;">'
-            '<h2 style="margin:0;font-size:24px;font-weight:600;'
-            'background:linear-gradient(135deg,#C7A462,#B8943F);'
-            '-webkit-background-clip:text;-webkit-text-fill-color:transparent;'
-            'line-height:1.3;">Hello, {name}</h2>'
-            '<p style="margin:2px 0 0;font-size:17px;color:#1E293B;'
-            'font-weight:500;line-height:1.3;">How can I help you today?</p>'
-            '<p style="margin:8px 0 0;font-size:11px;color:#94A3B8;'
-            'letter-spacing:0.3px;text-transform:uppercase;">{page}</p>'
-            '</div>'.format(name=first_name, page=current_page),
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            '<div style="height:1px;background:linear-gradient(90deg,'
-            'transparent,#E5E7EB,transparent);margin:0 0 16px;"></div>',
-            unsafe_allow_html=True,
-        )
-
-        if display_messages:
-            if st.button("↺ New conversation", key="copilot_clear"):
-                st.session_state.copilot_messages = []
-                st.rerun()
-            for msg in display_messages:
-                with st.chat_message(msg["role"], avatar="👤" if msg["role"] == "user" else "✨"):
-                    st.markdown(msg["content"])
-
-        if not display_messages:
-            suggestions = get_suggested_questions(current_page)
-            icons = ["📊", "📈", "🔍"]
-            for i, q in enumerate(suggestions):
-                icon = icons[i] if i < len(icons) else "💡"
-                if st.button(
-                    "{} {}".format(icon, q),
-                    key="copilot_s_{}".format(i),
-                    use_container_width=True,
-                ):
-                    st.session_state.copilot_pending_question = q
-                    st.rerun()
-
-        user_input = st.chat_input("Ask a question...", key="copilot_input")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        question = user_input or st.session_state.copilot_pending_question
-        if st.session_state.copilot_pending_question and question == st.session_state.copilot_pending_question:
-            st.session_state.copilot_pending_question = None
-
-        if question:
-            messages.append({"role": "user", "content": question})
-            with st.chat_message("user", avatar="👤"):
-                st.markdown(question)
-            with st.chat_message("assistant", avatar="✨"):
-                with st.spinner(""):
-                    try:
-                        answer, updated_messages = run_copilot_turn(
-                            client=st.session_state.copilot_client,
-                            conn=conn,
-                            messages=messages,
-                            user=user,
-                            current_page=current_page,
-                            current_department=current_department,
-                        )
-                        st.session_state.copilot_messages = updated_messages
-                        st.markdown(answer)
-                    except Exception as e:
-                        st.error("Error: {}".format(str(e)))
-                        messages.append({
-                            "role": "assistant",
-                            "content": [{"type": "text", "text": "Error: {}".format(str(e))}],
-                        })
-                        st.session_state.copilot_messages = messages
-
-        nav = st.session_state.pop("copilot_navigate", None)
-        if nav:
-            page = nav.get("page")
-            subsection = nav.get("subsection")
-            if page:
-                st.session_state.current_page = page
-                if subsection:
-                    st.session_state.current_subsection = subsection
-                st.session_state.copilot_open = False
-                st.rerun()
-
-    panel.float(float_css_helper(
-        top="0px",
-        right="0px",
-        css="""
-            z-index: 999998;
-            position: fixed !important;
-            width: 360px !important;
-            height: 100vh !important;
-            background: rgba(255, 255, 255, 0.92) !important;
-            backdrop-filter: blur(20px) saturate(180%) !important;
-            -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-            border-left: 1px solid rgba(229, 231, 235, 0.6) !important;
-            box-shadow: -8px 0 40px rgba(0, 0, 0, 0.06) !important;
-            padding: 24px 20px !important;
-            overflow-y: auto !important;
-            border-radius: 0 !important;
-        """
-    ))
-
-
-def _get_display_messages(messages):
-    display = []
+def _display_turns(messages):
+    """Render conversation history."""
     for msg in messages:
         role = msg.get("role")
         content = msg.get("content")
         if role == "user" and isinstance(content, str):
-            display.append({"role": "user", "content": content})
+            with st.chat_message("user", avatar="You"):
+                st.markdown(content)
         elif role == "assistant":
-            if isinstance(content, str):
-                display.append({"role": "assistant", "content": content})
-            elif isinstance(content, list):
-                text_parts = []
-                for block in content:
-                    if hasattr(block, "text"):
-                        text_parts.append(block.text)
-                    elif isinstance(block, dict) and block.get("type") == "text":
-                        text_parts.append(block.get("text", ""))
-                if text_parts:
-                    display.append({"role": "assistant", "content": "\n".join(text_parts)})
-    return display
+            text = _extract_assistant_text(content)
+            if text:
+                with st.chat_message("assistant", avatar="AI"):
+                    st.markdown(text)
+
+
+def _extract_assistant_text(content):
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+    parts = []
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "text":
+            parts.append(block.get("text", ""))
+        elif hasattr(block, "text"):
+            parts.append(block.text)
+    return "\n".join(p for p in parts if p)
+
+
+def _render_header(user, current_page):
+    user_name = user.get("display_name", "") if user else ""
+    first_name = user_name.split()[0] if user_name else "there"
+    page_safe = html.escape(str(current_page or "Dashboard"))
+
+    st.markdown(
+        '<div class="copilot-shell"><div class="copilot-header">'
+        '<p class="copilot-eyebrow">{} · {}</p>'
+        '<h1 class="copilot-title">{}, {}</h1>'
+        '<p class="copilot-sub">{}</p>'
+        '<span class="copilot-context">Viewing · {}</span>'
+        '<p class="copilot-disclaimer">'
+        'Responses are generated from your operational database. '
+        'Verify figures before financial decisions. '
+        'Data is read-only and scoped to your access level.'
+        '</p></div></div>'.format(
+            html.escape(APP_FULL_NAME),
+            html.escape(PLATFORM_TITLE),
+            html.escape(COPILOT_TITLE),
+            html.escape(first_name),
+            html.escape(COPILOT_SUBTITLE),
+            page_safe,
+        ),
+        unsafe_allow_html=True,
+    )
+
+
+def _render_setup_notice():
+    st.markdown(
+        '<div class="copilot-setup">'
+        '<h4>Configuration required</h4></div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(api_key_status_message())
+
+
+@st.dialog(COPILOT_TITLE, width="large")
+def _copilot_dialog(conn, user, current_page, current_department):
+    """Executive modal for AI operations intelligence."""
+    _inject_copilot_styles()
+
+    client = get_anthropic_client()
+    _render_header(user, current_page)
+
+    if not client:
+        _render_setup_notice()
+        return
+
+    messages = st.session_state.copilot_messages
+
+    toolbar_l, toolbar_r = st.columns([1, 1])
+    with toolbar_l:
+        if messages:
+            if st.button("Start new session", key="copilot_clear", type="secondary"):
+                st.session_state.copilot_messages = []
+                st.rerun()
+    with toolbar_r:
+        st.markdown(
+            '<p style="text-align:right;font-size:11px;color:#94A3B8;'
+            'margin:8px 0 0;padding:0;">Powered by Claude</p>',
+            unsafe_allow_html=True,
+        )
+
+    if messages:
+        st.markdown("---")
+        _display_turns(messages)
+
+    if not messages:
+        st.markdown(
+            '<p class="copilot-prompt-label">Suggested inquiries</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="copilot-prompts">', unsafe_allow_html=True)
+        for i, q in enumerate(get_suggested_questions(current_page)):
+            if st.button(q, key="copilot_s_{}".format(i), use_container_width=True):
+                st.session_state.copilot_pending_question = q
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    question = st.chat_input(
+        "Enter your question — revenue, labor, food cost, budgets…",
+        key="copilot_input",
+    )
+    pending = st.session_state.copilot_pending_question
+    if pending:
+        question = pending
+        st.session_state.copilot_pending_question = None
+
+    if question:
+        messages.append({"role": "user", "content": question})
+        with st.chat_message("user", avatar="You"):
+            st.markdown(question)
+        with st.chat_message("assistant", avatar="AI"):
+            with st.spinner("Retrieving and analyzing operational data…"):
+                try:
+                    answer, updated = run_copilot_turn(
+                        client=client,
+                        conn=conn,
+                        messages=messages,
+                        user=user,
+                        current_page=current_page,
+                        current_department=current_department,
+                    )
+                    st.session_state.copilot_messages = updated
+                    st.markdown(answer)
+                except Exception as e:
+                    st.error(
+                        "Unable to complete this request. "
+                        "Please try again or rephrase your question.\n\n"
+                        "_{}_".format(html.escape(str(e)))
+                    )
+                    if messages and messages[-1].get("role") == "user":
+                        messages.pop()
+
+
+def render_copilot_panel(conn, user, current_page, current_department):
+    """Sidebar launcher and post-chat navigation."""
+    _init_session_state()
+
+    nav = st.session_state.pop("copilot_navigate", None)
+    if nav and nav.get("page"):
+        st.session_state.current_page = nav["page"]
+        if nav.get("subsection"):
+            st.session_state.current_subsection = nav["subsection"]
+        st.rerun()
+
+    _inject_copilot_styles()
+
+    st.sidebar.markdown(
+        '<div class="copilot-launch-wrap">'
+        '<div class="nav-group-label" style="padding:16px 8px 8px !important;">'
+        'Intelligence</div></div>',
+        unsafe_allow_html=True,
+    )
+    if st.sidebar.button(
+        COPILOT_TITLE,
+        use_container_width=True,
+        key="copilot_open_dialog",
+        help="Executive AI assistant for operations, budgets, and labor data",
+    ):
+        _copilot_dialog(conn, user, current_page, current_department)

@@ -156,12 +156,29 @@ def main():
             app_footer()
             return
 
-    # ─── Auto-import: check Gmail + parse PDFs on startup ───
+    # ─── Auto-import: Gmail PDFs → database (Odyssey + CTUIT) ───
     if "gmail_checked" not in st.session_state:
         st.session_state.gmail_checked = True
+        uname = user["username"] if user else "system"
         try:
-            from gmail_import import check_new_emails
+            from gmail_import import check_new_emails, check_new_ctuit_emails
             from odyssey_parser import auto_import_all
+            from ctuit_import import auto_import_ctuit
+
+            check_new_ctuit_emails()
+            ctuit_results = auto_import_ctuit(
+                conn, uname, download_from_gmail=False
+            )
+            for r in ctuit_results:
+                if r.get("success") and r.get("records", 0) > 0:
+                    st.toast(
+                        "CTUIT synced: {} — {} records".format(
+                            r.get("department", "dept"),
+                            r["records"],
+                        ),
+                        icon="✅",
+                    )
+
             new_files = check_new_emails()
             if new_files:
                 results = auto_import_all(conn)

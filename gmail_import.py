@@ -14,8 +14,11 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-# Gmail read-only scope
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+# Gmail read + send scopes
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
+]
 
 BASE_DIR = Path(__file__).parent
 CREDS_FILE = BASE_DIR / "credentials.json"
@@ -195,6 +198,125 @@ def check_new_emails():
         return []
 
     return fetch_odyssey_attachments(max_results=20)
+
+
+# ─── CTUIT / Compeat Ops Statement ─────────────────────────────────
+
+CTUIT_GMAIL_QUERY = (
+    "(from:ctuit OR from:compeat OR subject:ctuit OR subject:\"ops statement\") "
+    "has:attachment filename:pdf"
+)
+
+
+def _download_pdf_attachments(service, messages, prefix="ctuit"):
+    """Download PDF attachments from a list of Gmail message refs."""
+    saved_files = []
+
+    for msg_info in messages:
+        msg = service.users().messages().get(
+            userId="me", id=msg_info["id"]
+        ).execute()
+
+        headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
+        subject = headers.get("Subject", "unknown")
+        date_str = headers.get("Date", "")
+
+        try:
+            import re as _re
+            from email.utils import parsedate_to_datetime
+
+            clean_date = _re.sub(r"\s*\([A-Z]{2,5}\)\s*$", "", date_str.strip())
+            date_prefix = None
+            for fmt in [
+                "%a, %d %b %Y %H:%M:%S %z",
+                "%a, %d %b %Y %H:%M:%S %Z",
+                "%d %b %Y %H:%M:%S %z",
+            ]:
+                try:
+                    dt = datetime.strptime(clean_date, fmt)
+                    date_prefix = dt.strftime("%Y-%m-%d")
+                    break
+                except ValueError:
+                    continue
+            if not date_prefix:
+                try:
+                    dt = parsedate_to_datetime(date_str)
+                    date_prefix = dt.strftime("%Y-%m-%d")
+                except Exception:
+                    date_prefix = datetime.now().strftime("%Y-%m-%d")
+        except Exception:
+            date_prefix = datetime.now().strftime("%Y-%m-%d")
+
+        parts = msg["payload"].get("parts", [])
+        for part in parts:
+            filename = part.get("filename", "")
+            if not filename or not filename.lower().endswith(".pdf"):
+                continue
+
+            safe_name = "{}__{}__{}".format(
+                prefix, date_prefix, filename.replace(" ", "_")
+            )
+            save_path = IMPORTS_DIR / safe_name
+
+            if save_path.exists():
+                continue
+
+            att_id = part["body"].get("attachmentId")
+            if not att_id:
+                continue
+
+            att = service.users().messages().attachments().get(
+                userId="me", messageId=msg_info["id"], id=att_id
+            ).execute()
+
+            data = base64.urlsafe_b64decode(att["data"])
+            with open(save_path, "wb") as fh:
+                fh.write(data)
+
+            saved_files.append({
+                "path": str(save_path),
+                "filename": filename,
+                "subject": subject,
+                "date": date_prefix,
+            })
+
+    return saved_files
+
+
+def fetch_ctuit_attachments(max_results=20):
+    """Download CTUIT / Compeat Ops Statement PDFs from Gmail."""
+    IMPORTS_DIR.mkdir(exist_ok=True)
+    service = _get_gmail_service()
+
+    results = service.users().messages().list(
+        userId="me", q=CTUIT_GMAIL_QUERY, maxResults=max_results
+    ).execute()
+
+    messages = results.get("messages", [])
+    if not messages:
+        return []
+
+    return _download_pdf_attachments(service, messages, prefix="ctuit")
+
+
+def check_new_ctuit_emails():
+    """Download unread CTUIT PDF attachments from Gmail."""
+    IMPORTS_DIR.mkdir(exist_ok=True)
+    try:
+        service = _get_gmail_service()
+    except Exception:
+        return []
+
+    query = CTUIT_GMAIL_QUERY + " is:unread"
+    results = service.users().messages().list(
+        userId="me", q=query, maxResults=25
+    ).execute()
+
+    messages = results.get("messages", [])
+    if not messages:
+        return []
+
+    return _download_pdf_attachments(service, messages, prefix="ctuit")
 
 
 def get_import_status():

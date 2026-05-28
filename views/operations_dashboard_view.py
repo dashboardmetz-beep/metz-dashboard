@@ -274,25 +274,66 @@ def render(conn, user):
             '<div style="height:50px;"></div>',  # spacer
             unsafe_allow_html=True,
         )
-        a1, a2, a3 = st.columns(3)
+        a1, a2, a3, a4 = st.columns(4)
         with a1:
-            if st.button("🖨 Print / PDF", key="od_print",
+            if st.button("Sync CTUIT", key="od_ctuit_sync",
+                         use_container_width=True,
+                         help="Import latest CTUIT Ops Statement PDFs from Gmail"):
+                try:
+                    from ctuit_import import sync_ctuit_to_dashboard
+                    with st.spinner("Syncing CTUIT to dashboard..."):
+                        results = sync_ctuit_to_dashboard(conn, user["username"])
+                    imported = [r for r in results if r.get("success")]
+                    if imported:
+                        parts = [
+                            "{} ({} rec)".format(r.get("department", "?"), r.get("records", 0))
+                            for r in imported
+                        ]
+                        st.toast(
+                            "CTUIT synced: " + ", ".join(parts),
+                            icon="✅",
+                        )
+                    else:
+                        st.toast(
+                            "No new CTUIT PDFs in Gmail. Forward Ops Statements to inbox.",
+                            icon="ℹ️",
+                        )
+                except Exception as exc:
+                    st.toast("CTUIT sync failed: {}".format(str(exc)[:80]), icon="⚠️")
+                st.cache_data.clear()
+                st.rerun()
+        with a2:
+            if st.button("Print / PDF", key="od_print",
                          use_container_width=True,
                          help="Use Cmd+P / Ctrl+P to save as PDF"):
                 st.markdown(
                     '<script>window.print();</script>',
                     unsafe_allow_html=True,
                 )
-        with a2:
-            send_clicked = st.button("📧 Email Digest", key="od_email",
+        with a3:
+            send_clicked = st.button("Email Digest", key="od_email",
                                       use_container_width=True,
                                       help="Send weekly summary via Gmail")
-        with a3:
-            if st.button("🔄 Refresh", key="od_refresh",
+        with a4:
+            if st.button("Refresh", key="od_refresh",
                          use_container_width=True,
                          help="Reload latest data"):
                 st.cache_data.clear()
                 st.rerun()
+
+    try:
+        from ctuit_import import fetch_last_ctuit_sync
+        last_ctuit = fetch_last_ctuit_sync(conn)
+        if last_ctuit:
+            st.caption(
+                "Last CTUIT sync: {} · {} · week of {}".format(
+                    (last_ctuit.get("imported_at") or "")[:16].replace("T", " "),
+                    last_ctuit.get("department", ""),
+                    last_ctuit.get("week_start", ""),
+                )
+            )
+    except Exception:
+        pass
 
     # ═══════ Period selector ═══════
     if "od_week" not in st.session_state:

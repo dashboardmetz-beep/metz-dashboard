@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from config import DEPARTMENTS
-from styles import page_header, dash_kpi_card, dash_section_header
+from styles import page_header, dash_kpi_card, dash_section_header, hero_header
 import db
 
 
@@ -69,7 +69,7 @@ _STATUSES = ["not_started", "in_progress", "completed"]
 def render(conn, user):
     """Main training page."""
     _init_training_tables(conn)
-    page_header("Training Tracker", "Employee development, certifications, and compliance")
+    hero_header("Training Tracker", "Employee development, certifications, and compliance")
 
     dept = st.selectbox("Department", DEPARTMENTS, key="train_dept")
 

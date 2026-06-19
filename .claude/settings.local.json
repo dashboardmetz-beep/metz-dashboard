@@ -27,7 +27,9 @@
       "Bash(open http://localhost:8501)",
       "Bash(python3 -c ':*)",
       "Bash(xargs kill:*)",
-      "Bash(rm imports/2026-04-15__Tender_Totals*.pdf)"
+      "Bash(rm imports/2026-04-15__Tender_Totals*.pdf)",
+      "Bash(gh auth:*)",
+      "Bash(brew install:*)"
     ]
   }
 }

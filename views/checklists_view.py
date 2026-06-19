@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from config import DEPARTMENTS
-from styles import page_header, dash_kpi_card, dash_section_header
+from styles import page_header, dash_kpi_card, dash_section_header, hero_header
 import db
 
 
@@ -109,7 +109,7 @@ def _seed_defaults(conn):
 def render(conn, user):
     """Main checklists page."""
     _init_checklist_tables(conn)
-    page_header("Checklists & Audits", "Daily tasks, inspections, and compliance tracking")
+    hero_header("Checklists & Audits", "Daily tasks, inspections, and compliance tracking")
 
     dept = st.selectbox("Department", DEPARTMENTS, key="cl_dept")
     today = date.today()

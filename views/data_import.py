@@ -21,7 +21,7 @@ from config import (
     DEPARTMENTS, IMPORT_TYPES, OPERATION_COST_CATEGORIES,
 )
 from auth import can_access_imports
-from styles import page_header, section_title, mini_divider, app_footer, event_reminders
+from styles import page_header, section_title, mini_divider, app_footer, event_reminders, hero_header
 import db
 
 
@@ -863,13 +863,79 @@ def _render_total_inventory(conn, user):
 # ═══════════════════════════════════════════════════════
 
 
+def _render_gmail_connection_panel():
+    """Premium Gmail connection card with live status + Reconnect button."""
+    from gmail_import import get_token_status, force_reauth
+
+    status = get_token_status()
+    state = status.get("state")
+
+    if state == "linked":
+        badge_cls = "gc-badge ok"
+        badge_text = "✓ Connected"
+        msg = "Auto-import is live. Token will auto-refresh."
+    elif state == "expired":
+        badge_cls = "gc-badge warn"
+        badge_text = "⚠ Token expired"
+        err = status.get("error") or ""
+        msg = "Click Reconnect to re-authorize. " + err
+    elif state == "no_creds":
+        badge_cls = "gc-badge err"
+        badge_text = "✗ Missing credentials.json"
+        msg = status.get("error") or "Place credentials.json in the project root."
+    else:
+        badge_cls = "gc-badge warn"
+        badge_text = "⚠ Not connected"
+        msg = "Click Reconnect to sign in with your Google account."
+
+    expiry = status.get("expiry") or "—"
+
+    c1, c2 = st.columns([5, 2])
+    with c1:
+        st.markdown(
+            '<div class="gc-card">'
+            '<div class="gc-row">'
+            '<div class="gc-icon">'
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" '
+            'stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" '
+            'stroke-linejoin="round">'
+            '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>'
+            '<polyline points="22,6 12,13 2,6"/></svg>'
+            '</div>'
+            '<div class="gc-body">'
+            '<div class="gc-title">Gmail Connection '
+            '<span class="{bc}">{bt}</span></div>'
+            '<div class="gc-msg">{m}</div>'
+            '<div class="gc-meta">Token expiry: <code>{e}</code></div>'
+            '</div>'
+            '</div>'
+            '</div>'.format(bc=badge_cls, bt=badge_text, m=msg, e=expiry),
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
+        if st.button("🔗  Reconnect Gmail", key="gmail_reconnect",
+                     use_container_width=True, type="primary"):
+            with st.spinner("Opening browser for Google sign-in…"):
+                result = force_reauth()
+            if result.get("ok"):
+                acct = result.get("account") or "your account"
+                st.toast("Gmail reconnected as {}".format(acct), icon="✅")
+                st.rerun()
+            else:
+                st.error("Reconnect failed: {}".format(
+                    result.get("error", "unknown error")))
+
+
 def page_data_import(conn, user):
-    page_header("Data Import Center", "Import data from US Foods, CTUIT, Odyssey, and more")
+    hero_header("Data Import Center", "Import data from US Foods, CTUIT, Odyssey, and more")
     event_reminders(conn)
 
     if not can_access_imports(user):
         st.error("You do not have permission to access this page.")
         return
+
+    _render_gmail_connection_panel()
 
     active_sub = st.session_state.get("current_subsection", "CTUIT — Weekly Budget")
 

@@ -88,6 +88,113 @@ def _get_gmail_service():
     return build("gmail", "v1", credentials=creds)
 
 
+def get_token_status():
+    """Inspect token.json + try to refresh.
+
+    Returns dict with: state ('linked', 'expired', 'not_linked', 'no_creds'),
+    account (best-effort email or client_id snippet), expiry, error (if any).
+    """
+    info = {
+        "state": "not_linked",
+        "account": None,
+        "expiry": None,
+        "scopes": [],
+        "error": None,
+    }
+
+    if not CREDS_FILE.exists():
+        info["state"] = "no_creds"
+        info["error"] = "credentials.json missing — OAuth app config not found."
+        return info
+
+    token_data = _load_token_from_secrets()
+    creds = None
+    if token_data:
+        try:
+            creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+        except Exception as e:
+            info["error"] = "Could not load token from secrets: {}".format(e)
+    elif TOKEN_FILE.exists():
+        try:
+            creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
+        except Exception as e:
+            info["error"] = "Could not read token.json: {}".format(e)
+
+    if creds is None:
+        return info  # state stays "not_linked"
+
+    info["scopes"] = list(getattr(creds, "scopes", []) or [])
+    info["expiry"] = creds.expiry.isoformat() if creds.expiry else None
+    cid = getattr(creds, "client_id", "") or ""
+    info["account"] = cid[:30] + "..." if cid else None
+
+    if creds.valid:
+        info["state"] = "linked"
+        return info
+
+    if creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(Request())
+            _save_token(creds)
+            info["state"] = "linked"
+            info["expiry"] = creds.expiry.isoformat() if creds.expiry else None
+            return info
+        except Exception as e:
+            info["state"] = "expired"
+            info["error"] = "Refresh failed: {}".format(str(e)[:200])
+            return info
+
+    info["state"] = "expired"
+    info["error"] = "Token invalid and no refresh_token available."
+    return info
+
+
+def force_reauth():
+    """Wipe the local token and run a fresh OAuth flow.
+
+    Opens a browser tab for the user to sign in. Blocks until they approve.
+    Returns dict: {ok: bool, account: str|None, error: str|None}.
+
+    Only works when the app is running locally (the OAuth callback hits
+    localhost). On hosted Streamlit Cloud this raises.
+    """
+    if not CREDS_FILE.exists():
+        return {
+            "ok": False,
+            "account": None,
+            "error": "credentials.json missing — cannot start OAuth flow.",
+        }
+
+    # Delete stale token first so the flow always prompts.
+    try:
+        if TOKEN_FILE.exists():
+            TOKEN_FILE.unlink()
+    except Exception:
+        pass
+
+    try:
+        flow = InstalledAppFlow.from_client_secrets_file(str(CREDS_FILE), SCOPES)
+        creds = flow.run_local_server(
+            port=0,
+            prompt="consent",
+            authorization_prompt_message="",
+            success_message="Gmail reconnected. You can close this tab and return to the app.",
+            open_browser=True,
+        )
+        _save_token(creds)
+        # Best-effort account email lookup
+        account_email = None
+        try:
+            service = build("gmail", "v1", credentials=creds)
+            profile = service.users().getProfile(userId="me").execute()
+            account_email = profile.get("emailAddress")
+        except Exception:
+            pass
+        return {"ok": True, "account": account_email, "error": None}
+    except Exception as e:
+        return {"ok": False, "account": None, "error": str(e)[:300]}
+
+
 def fetch_odyssey_attachments(max_results=10):
     """
     Fetch PDF attachments from NoReplyOdyssey emails.

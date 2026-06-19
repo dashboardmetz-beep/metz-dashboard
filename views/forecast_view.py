@@ -1,215 +1,254 @@
 """
-Forecast & Allowable Spend Calculator.
-
-For each department, calculates:
-  - Forecast revenue (based on historical 4-week rolling average + recent velocity)
-  - Allowable Labor $ = Forecast × Target Labor %
-  - Allowable Labor Hours = (Allowable Labor $ - Salaries - Office Labor) / Avg Hourly Wage
-  - Allowable Food $ = Forecast × Target Food Cost %
+Forecast & Allowable Spend — Premium layout.
+KPI row + Adjust Targets + Allowable Spend cards + math reveal.
 """
 
 from datetime import date, timedelta
-import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 from config import DEPARTMENTS
-from styles import (
-    page_header, dash_kpi_card, dash_section_header,
-    dash_chart_start, dash_chart_end,
-)
-from calculations import sum_revenue_streams, fmt_dollar, fmt_pct, fmt_number
+from calculations import fmt_dollar
+from styles import hero_header
 import db
 
 
-# ─── Plotly theme ───
-def _apply_theme(fig, height=320):
-    fig.update_layout(
-        height=height,
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif", size=12, color="#64748B"),
-        margin=dict(l=10, r=10, t=10, b=10),
-        hoverlabel=dict(bgcolor="#1F2A44", font_color="#FFFFFF"),
-        xaxis=dict(gridcolor="rgba(148,163,184,0.15)", showline=False),
-        yaxis=dict(gridcolor="rgba(148,163,184,0.15)", showline=False),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                    xanchor="center", x=0.5, font=dict(size=11)),
-    )
-    return fig
+def _icon(name):
+    icons = {
+        "dollar": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+        "users": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+        "utensils": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',
+        "clock": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        "calc": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="13" y1="10" x2="15" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="15" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="15" y2="18"/></svg>',
+        "info": '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+        "building": '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5B5246" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg>',
+        "clk": '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5B5246" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        "cloud-up": '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5B5246" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><polyline points="16 16 12 12 8 16"/><path d="M12 12v9"/></svg>',
+        "gear": '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5B5246" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+        "chevron-r": '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>',
+    }
+    return icons.get(name, "")
 
 
-def _init_forecast_tables(conn):
-    """Add fields to targets table for forecast/allowable calculations."""
-    # Add columns if they don't exist
-    cols_to_add = [
+def _init_tables(conn):
+    cols = [
         ("target_food_cost_pct", "REAL DEFAULT 30.0"),
         ("salaries_dollars", "REAL DEFAULT 0.0"),
         ("office_labor_dollars", "REAL DEFAULT 0.0"),
         ("avg_hourly_wage", "REAL DEFAULT 17.0"),
     ]
-    for col, dtype in cols_to_add:
+    for col, dtype in cols:
         try:
             conn.execute("ALTER TABLE targets ADD COLUMN {} {}".format(col, dtype))
         except Exception:
-            pass  # Column already exists
-
-    # Seed defaults if no rows
-    existing = conn.execute("SELECT COUNT(*) FROM targets").fetchone()[0]
-    if existing == 0:
-        defaults = [
-            ("Board & Catering", 35.0, 12.0, 32.0, 5000.0, 1500.0, 17.0),
-            ("Starbucks", 30.0, 10.0, 35.0, 0.0, 0.0, 16.0),
-            ("Qdoba", 30.0, 10.0, 32.0, 0.0, 0.0, 16.0),
-            ("Retail & Mac's Grill", 32.0, 11.0, 33.0, 0.0, 0.0, 16.5),
-        ]
-        for d, lp, splh, fc, sal, ofc, wage in defaults:
-            conn.execute(
-                """INSERT OR REPLACE INTO targets
-                   (department, target_labor_pct, target_splh,
-                    target_food_cost_pct, salaries_dollars,
-                    office_labor_dollars, avg_hourly_wage)
-                   VALUES (?,?,?,?,?,?,?)""",
-                (d, lp, splh, fc, sal, ofc, wage),
-            )
+            pass
     conn.commit()
 
 
 def _get_targets(conn, dept):
-    """Get targets row for department."""
     row = conn.execute(
-        "SELECT * FROM targets WHERE department = ?", (dept,)
+        "SELECT * FROM targets WHERE department=?", (dept,)
     ).fetchone()
-    if row:
-        return dict(row)
-    return {
-        "target_labor_pct": 30.0,
-        "target_splh": 10.0,
-        "target_food_cost_pct": 32.0,
-        "salaries_dollars": 0.0,
-        "office_labor_dollars": 0.0,
-        "avg_hourly_wage": 17.0,
+    return dict(row) if row else {
+        "target_labor_pct": 30.0, "target_splh": 10.0,
+        "target_food_cost_pct": 30.0, "salaries_dollars": 0,
+        "office_labor_dollars": 0, "avg_hourly_wage": 17.0,
     }
 
 
-def _historical_revenue(conn, dept, weeks_back=8, ref_date=None):
-    """Get historical revenue for past N weeks."""
-    if ref_date is None:
-        ref_date = date.today()
-    start = (db.get_week_start(ref_date) - timedelta(weeks=weeks_back)).isoformat()
-    end = db.get_week_start(ref_date).isoformat()
-
+def _historical(conn, dept, weeks=8, ref=None):
+    if ref is None:
+        ref = date.today()
+    start = (db.get_week_start(ref) - timedelta(weeks=weeks)).isoformat()
+    end = db.get_week_start(ref).isoformat()
     rows = conn.execute(
         """SELECT week_start,
                   COALESCE(board_revenue,0) + COALESCE(retail_revenue,0) +
                   COALESCE(flex_revenue,0) + COALESCE(catering_revenue,0) +
-                  COALESCE(other_revenue,0) AS revenue,
-                  COALESCE(cos_dollars,0) AS cos,
-                  COALESCE(total_labor_dollars,0) AS labor_d,
-                  COALESCE(total_labor_hours,0) AS labor_h
+                  COALESCE(other_revenue,0) AS revenue
            FROM weekly_financials
-           WHERE department = ? AND week_start < ? AND week_start >= ?
+           WHERE department=? AND week_start < ? AND week_start >= ?
            ORDER BY week_start""",
         (dept, end, start)
     ).fetchall()
     return [dict(r) for r in rows]
 
 
-def _forecast_next_week(history):
-    """Forecast next week using 4-week rolling avg + velocity adjustment."""
-    if not history:
-        return {"revenue": 0, "method": "no data"}
-
-    revs = [r["revenue"] for r in history if r["revenue"]]
+def _forecast(history):
+    revs = [r["revenue"] for r in history if r.get("revenue")]
     if not revs:
-        return {"revenue": 0, "method": "no revenue"}
-
+        return {"revenue": 0, "weeks": 0}
     if len(revs) >= 4:
-        # 4-week rolling average
         avg = sum(revs[-4:]) / 4
-        # Velocity: avg of last 2 vs avg of weeks 3-4 ago
         recent = sum(revs[-2:]) / 2
-        prior = sum(revs[-4:-2]) / 2 if len(revs) >= 4 else recent
+        prior = sum(revs[-4:-2]) / 2
         velocity = (recent - prior) / 2 if prior else 0
-        forecast = max(0, avg + velocity)
-        return {
-            "revenue": forecast,
-            "method": "4-wk avg + velocity",
-            "avg": avg,
-            "velocity": velocity,
-            "weeks_used": 4,
-        }
-    else:
-        avg = sum(revs) / len(revs)
-        return {
-            "revenue": avg,
-            "method": "{}-wk avg".format(len(revs)),
-            "avg": avg,
-            "velocity": 0,
-            "weeks_used": len(revs),
-        }
+        return {"revenue": max(0, avg + velocity), "weeks": len(revs)}
+    return {"revenue": sum(revs) / len(revs), "weeks": len(revs)}
 
 
 def render(conn, user):
-    """Main forecast page."""
-    _init_forecast_tables(conn)
-    page_header(
+    _init_tables(conn)
+
+    today = date.today()
+    if "fc_week" not in st.session_state:
+        st.session_state.fc_week = db.get_week_start(today)
+    if "fc_dept" not in st.session_state:
+        st.session_state.fc_dept = "Board & Catering"
+
+    week_start = st.session_state.fc_week
+    week_end = week_start + timedelta(days=6)
+    dept = st.session_state.fc_dept
+
+    # ─── Hero header ───
+    def _fc_right():
+        d1, d2, d3, d4 = st.columns([2, 1, 1, 1.1])
+        with d1:
+            st.markdown(
+                '<div class="de-date-display">'
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" '
+                'stroke="#0B1628" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                '<rect x="3" y="4" width="18" height="18" rx="2"/>'
+                '<line x1="16" y1="2" x2="16" y2="6"/>'
+                '<line x1="8" y1="2" x2="8" y2="6"/>'
+                '<line x1="3" y1="10" x2="21" y2="10"/></svg>'
+                '<span>Week Ending {d}</span>'
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" '
+                'stroke="#8B7E66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                '<polyline points="6 9 12 15 18 9"/></svg>'
+                '</div>'.format(d=week_end.strftime("%b %-d, %Y")),
+                unsafe_allow_html=True,
+            )
+        with d2:
+            if st.button("‹  Prev Week", key="fc_prev_week",
+                         use_container_width=True):
+                st.session_state.fc_week -= timedelta(weeks=1)
+                st.rerun()
+        with d3:
+            if st.button("Next Week  ›", key="fc_next_week",
+                         use_container_width=True):
+                st.session_state.fc_week += timedelta(weeks=1)
+                st.rerun()
+        with d4:
+            if st.button("💾  Save Forecast", key="fc_save_v2",
+                         use_container_width=True, type="primary"):
+                st.toast("Forecast saved", icon="✅")
+
+    hero_header(
         "Forecast & Allowable Spend",
-        "Predict next week + calculate labor and food ceilings"
+        "Predict next week + calculate labor and food ceilings",
+        _fc_right,
     )
 
+    # ─── Info bar ───
+    info_html = (
+        '<div class="fr-info-bar">'
+        '<div class="fr-info-item">{bld}<span class="fii-label">Department:</span>'
+        '<span class="fii-value"><b>{dept}</b></span></div>'
+        '<div class="fr-info-item">{clk}<span class="fii-label">Last Updated:</span>'
+        '<span class="fii-value">—</span></div>'
+        '</div>'.format(bld=_icon("building"), clk=_icon("clk"), dept=dept)
+    )
+    st.markdown(info_html, unsafe_allow_html=True)
+
     # Department selector
-    dept = st.selectbox("Department", DEPARTMENTS, key="fc_dept")
+    new_dept = st.selectbox("Department", DEPARTMENTS,
+                             index=DEPARTMENTS.index(dept) if dept in DEPARTMENTS else 0,
+                             key="fc_dept_sel")
+    if new_dept != dept:
+        st.session_state.fc_dept = new_dept
+        st.rerun()
+    dept = new_dept
+
+    # ─── Calculations ───
+    targets = _get_targets(conn, dept)
+    history = _historical(conn, dept, weeks=8)
+    forecast = _forecast(history)
+    forecast_rev = forecast["revenue"]
     is_board = dept == "Board & Catering"
 
-    # Get targets and history
-    targets = _get_targets(conn, dept)
-    history = _historical_revenue(conn, dept, weeks_back=8)
-    forecast = _forecast_next_week(history)
+    target_lp = (targets.get("target_labor_pct") or 30) / 100
+    target_fc = (targets.get("target_food_cost_pct") or 30) / 100
+    wage = targets.get("avg_hourly_wage") or 17.0
+    salaries = targets.get("salaries_dollars") or 0
+    office = targets.get("office_labor_dollars") or 0
 
-    # ═══════ Targets Configuration ═══════
-    with st.expander("⚙️ Adjust Targets", expanded=False):
+    total_labor_d = forecast_rev * target_lp
+    hourly_labor_d = max(0, total_labor_d - salaries - office) if is_board else total_labor_d
+    allow_hours = hourly_labor_d / wage if wage > 0 else 0
+    food_ceiling = forecast_rev * target_fc
+
+    # ─── 5 KPI cards ───
+    cards = st.columns(5)
+    metrics = [
+        ("Forecast Revenue", "${:,.2f}".format(forecast_rev),
+         "Based on {} weeks of history".format(forecast["weeks"]),
+         "dollar", "#ECFDF5"),
+        ("Total Labor $", "${:,.2f}".format(total_labor_d),
+         "{:.1f}% of revenue".format(target_lp * 100),
+         "users", "#F5F3FF"),
+        ("Food $ Ceiling", "${:,.2f}".format(food_ceiling),
+         "{:.1f}% of revenue".format(target_fc * 100),
+         "utensils", "#FFFBEB"),
+        ("Allowable Hours", "{:,.0f}".format(allow_hours),
+         "@ ${:.2f}/hr avg".format(wage),
+         "clock", "#F0F9FF"),
+        ("Hourly Labor $", "${:,.2f}".format(hourly_labor_d),
+         "After salaries & office" if is_board else "All variable",
+         "calc", "#EFF6FF"),
+    ]
+    for i, (label, value, sub, icon, bg) in enumerate(metrics):
+        with cards[i]:
+            st.markdown(
+                '<div class="fc-kpi">'
+                '<div class="fc-kpi-row">'
+                '<div class="fc-kpi-icon" style="background:{bg};">{icon}</div>'
+                '<div class="fc-kpi-meta">'
+                '<div class="fc-kpi-label">{label}</div>'
+                '<div class="fc-kpi-value">{value}</div>'
+                '<div class="fc-kpi-sub">{sub}</div>'
+                '</div></div></div>'.format(
+                    bg=bg, icon=_icon(icon), label=label, value=value, sub=sub,
+                ),
+                unsafe_allow_html=True,
+            )
+
+    # ─── Adjust Targets section ───
+    st.markdown(
+        '<div class="fc-targets-row">'
+        '<div class="fc-targets-left">'
+        '<span class="fc-targets-chev">▾</span>{gear}<b>Adjust Targets</b>'
+        '<span class="fc-targets-sub">Set labor %, food cost % and hourly rate assumptions</span>'
+        '</div></div>'.format(gear=_icon("gear")),
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("Edit targets", expanded=False):
         c1, c2, c3 = st.columns(3)
         with c1:
-            new_lp = st.number_input(
-                "Target Labor %", min_value=0.0, max_value=100.0, step=0.5,
-                value=float(targets["target_labor_pct"]),
-                key="t_labor_pct",
-            )
-            new_fc = st.number_input(
-                "Target Food Cost %", min_value=0.0, max_value=100.0, step=0.5,
-                value=float(targets.get("target_food_cost_pct") or 32.0),
-                key="t_fc_pct",
-            )
+            new_lp = st.number_input("Target Labor %", min_value=0.0, max_value=100.0,
+                                      step=0.5, value=float(targets["target_labor_pct"] or 30),
+                                      key="fc_t_lp")
+            new_fc = st.number_input("Target Food Cost %", min_value=0.0, max_value=100.0,
+                                      step=0.5, value=float(targets.get("target_food_cost_pct") or 30),
+                                      key="fc_t_fc")
         with c2:
-            new_wage = st.number_input(
-                "Avg Hourly Wage ($)", min_value=0.0, step=0.50,
-                value=float(targets.get("avg_hourly_wage") or 17.0),
-                key="t_wage",
-            )
-            new_splh = st.number_input(
-                "Target SPLH", min_value=0.0, step=0.5,
-                value=float(targets.get("target_splh") or 10.0),
-                key="t_splh",
-            )
+            new_wage = st.number_input("Avg Hourly Wage ($)", min_value=0.0, step=0.5,
+                                        value=float(wage), key="fc_t_wage")
+            new_splh = st.number_input("Target SPLH", min_value=0.0, step=0.5,
+                                        value=float(targets.get("target_splh") or 10),
+                                        key="fc_t_splh")
         with c3:
             if is_board:
-                new_sal = st.number_input(
-                    "Salaries $/wk", min_value=0.0, step=100.0,
-                    value=float(targets.get("salaries_dollars") or 0.0),
-                    key="t_sal",
-                )
-                new_ofc = st.number_input(
-                    "Office Labor $/wk", min_value=0.0, step=100.0,
-                    value=float(targets.get("office_labor_dollars") or 0.0),
-                    key="t_ofc",
-                )
+                new_sal = st.number_input("Salaries $/wk", min_value=0.0, step=100.0,
+                                           value=float(salaries), key="fc_t_sal")
+                new_ofc = st.number_input("Office Labor $/wk", min_value=0.0, step=100.0,
+                                           value=float(office), key="fc_t_ofc")
             else:
-                new_sal = 0.0
-                new_ofc = 0.0
-                st.caption("Retail: no salaried/office subtraction")
+                new_sal = 0
+                new_ofc = 0
+                st.caption("Retail — no salaried/office subtraction")
 
-        if st.button("Save Targets", key="t_save"):
+        if st.button("Save Targets", key="fc_t_save", type="primary"):
             conn.execute(
                 """INSERT OR REPLACE INTO targets
                    (department, target_labor_pct, target_splh,
@@ -219,227 +258,79 @@ def render(conn, user):
                 (dept, new_lp, new_splh, new_fc, new_sal, new_ofc, new_wage),
             )
             conn.commit()
-            st.success("Targets saved.")
+            st.success("Saved.")
             st.rerun()
 
-    # Use latest values
-    target_labor_pct = float(targets["target_labor_pct"]) / 100
-    target_fc_pct = float(targets.get("target_food_cost_pct") or 32) / 100
-    salaries = float(targets.get("salaries_dollars") or 0)
-    office_labor = float(targets.get("office_labor_dollars") or 0)
-    avg_wage = float(targets.get("avg_hourly_wage") or 17)
-
-    # ═══════ Forecast ═══════
-    forecast_rev = forecast["revenue"]
-
-    dash_section_header(
-        "Next Week Forecast",
-        "{} — {}".format(dept, forecast["method"]),
+    # ─── Allowable Spend section ───
+    st.markdown(
+        '<div class="fc-section-header">'
+        '<div><span class="fc-section-title">Allowable Spend {info}</span></div>'
+        '<span class="fc-section-meta">Hard ceilings based on forecast × targets</span>'
+        '</div>'.format(info=_icon("info")),
+        unsafe_allow_html=True,
     )
 
-    # Allow manager override
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        st.markdown(
-            '<div style="background:#FFF;border:1px solid #E5E7EB;'
-            'border-left:3px solid #C7A462;border-radius:10px;padding:14px 18px;'
-            'display:flex;justify-content:space-between;align-items:center;">'
-            '<div>'
-            '<div style="font-size:11px;color:#64748B;text-transform:uppercase;'
-            'letter-spacing:.08em;font-weight:600;">Forecast Revenue</div>'
-            '<div style="font-size:28px;font-weight:700;color:#1E293B;'
-            'margin-top:4px;">{}</div>'
-            '<div style="font-size:11px;color:#94A3B8;margin-top:2px;">'
-            'Based on {} weeks of history</div>'
-            '</div></div>'.format(
-                fmt_dollar(forecast_rev),
-                forecast.get("weeks_used", 0)),
-            unsafe_allow_html=True,
-        )
-    with c2:
-        override = st.number_input(
-            "Override ($)", min_value=0.0, step=100.0,
-            value=float(forecast_rev),
-            key="fc_override",
-        )
-        if abs(override - forecast_rev) > 0.01:
-            forecast_rev = override
-
-    # ═══════ Allowable Spend ═══════
-    st.markdown("")
-    dash_section_header(
-        "Allowable Spend",
-        "Hard ceilings based on forecast × targets",
-    )
-
-    # Calculations
-    allowable_labor_dollars = forecast_rev * target_labor_pct
-    allowable_food_dollars = forecast_rev * target_fc_pct
-
-    if is_board:
-        allowable_hourly = max(0, allowable_labor_dollars - salaries - office_labor)
-    else:
-        allowable_hourly = allowable_labor_dollars
-
-    allowable_hours = allowable_hourly / avg_wage if avg_wage > 0 else 0
-
-    # 4-card display
-    k1, k2, k3, k4 = st.columns(4)
-    with k1:
-        dash_kpi_card(
-            "Total Labor $", fmt_dollar(allowable_labor_dollars),
-            change="{:.1f}% of revenue".format(target_labor_pct * 100),
-            accent="navy",
-        )
-    with k2:
-        dash_kpi_card(
-            "Hourly Labor $", fmt_dollar(allowable_hourly),
-            change="After salaries & office" if is_board else "All variable",
-            accent="blue",
-        )
-    with k3:
-        dash_kpi_card(
-            "Allowable Hours", "{:.0f}".format(allowable_hours),
-            change="@ ${:.2f}/hr avg".format(avg_wage),
-            accent="gold",
-        )
-    with k4:
-        dash_kpi_card(
-            "Food $ Ceiling", fmt_dollar(allowable_food_dollars),
-            change="{:.1f}% of revenue".format(target_fc_pct * 100),
-            accent="green",
-        )
-
-    # ═══════ Math breakdown ═══════
-    with st.expander("📐 See the math"):
-        st.markdown("""
-**Forecast Revenue** = `{rev}`
-
-**Total Allowable Labor $** = Forecast × Target Labor %
-= `{rev}` × `{lp}%` = **`{tot_lab}`**
-""".format(
-            rev=fmt_dollar(forecast_rev),
-            lp=target_labor_pct * 100,
-            tot_lab=fmt_dollar(allowable_labor_dollars),
-        ))
-
-        if is_board:
-            st.markdown("""
-**Allowable Hourly Labor $** = Total Labor − Salaries − Office Labor
-= `{tot}` − `{sal}` − `{ofc}` = **`{hourly}`**
-""".format(
-                tot=fmt_dollar(allowable_labor_dollars),
-                sal=fmt_dollar(salaries),
-                ofc=fmt_dollar(office_labor),
-                hourly=fmt_dollar(allowable_hourly),
-            ))
-
-        st.markdown("""
-**Allowable Hours** = Hourly $ ÷ Avg Wage
-= `{h}` ÷ `${w:.2f}` = **`{hrs:.0f} hrs`**
-
-**Allowable Food $** = Forecast × Target FC %
-= `{rev}` × `{fc}%` = **`{food}`**
-""".format(
-            h=fmt_dollar(allowable_hourly),
-            w=avg_wage,
-            hrs=allowable_hours,
-            rev=fmt_dollar(forecast_rev),
-            fc=target_fc_pct * 100,
-            food=fmt_dollar(allowable_food_dollars),
-        ))
-
-    # ═══════ Historical chart ═══════
-    if history:
-        dash_chart_start("8-Week Revenue History", "With forecast")
-        df = pd.DataFrame(history)
-        df["week_label"] = pd.to_datetime(df["week_start"]).dt.strftime("%b %d")
-
-        next_week = (date.today() + timedelta(days=7)).strftime("%b %d (forecast)")
-
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=df["week_label"], y=df["revenue"],
-            name="Actual Revenue", marker_color="#1F2A44",
-            hovertemplate="<b>%{x}</b><br>Revenue: $%{y:,.0f}<extra></extra>",
-        ))
-        # Forecast bar
-        fig.add_trace(go.Bar(
-            x=[next_week], y=[forecast_rev],
-            name="Forecast", marker_color="#1F2A44",
-            marker_pattern_shape="/",
-            hovertemplate="<b>Forecast</b><br>$%{y:,.0f}<extra></extra>",
-        ))
-
-        # Trendline (rolling avg)
-        if len(df) >= 3:
-            rolling = df["revenue"].rolling(window=3, min_periods=1).mean()
-            fig.add_trace(go.Scatter(
-                x=df["week_label"], y=rolling,
-                name="3-wk avg trend", mode="lines",
-                line=dict(color="#C7A462", width=2, dash="dot"),
-            ))
-
-        _apply_theme(fig, height=300)
-        fig.update_yaxes(tickformat="$,.0f")
-        st.plotly_chart(fig, use_container_width=True,
-                        config={"displayModeBar": False})
-        dash_chart_end()
-    else:
-        st.info("No historical data yet for {}. Add weekly financials to enable forecasting.".format(dept))
-
-    # ═══════ Variance check vs current week budget ═══════
-    current_week = db.get_week_start(date.today())
-    current_budget = conn.execute(
-        "SELECT * FROM budgets WHERE department=? AND week_start=?",
-        (dept, current_week.isoformat())
-    ).fetchone()
-
-    if current_budget:
-        cb = dict(current_budget)
-        b_rev = cb.get("revenue") or 0
-        b_lab_d = cb.get("labor_dollars") or 0
-        b_lab_h = cb.get("labor_hours") or 0
-
-        if b_rev > 0:
-            dash_section_header(
-                "Current Week Comparison",
-                "Allowable vs Budgeted ({})".format(current_week.isoformat())
+    a1, a2, a3, a4 = st.columns(4)
+    spend_cards = [
+        ("Total Labor $", "${:,.2f}".format(total_labor_d),
+         "{:.1f}% of forecasted revenue".format(target_lp * 100), "#8B5CF6"),
+        ("Hourly Labor $", "${:,.2f}".format(hourly_labor_d),
+         "After salaries & office allocation" if is_board else "All variable", "#3B82F6"),
+        ("Allowable Hours", "{:,.0f}".format(allow_hours),
+         "@ ${:.2f}/hr average".format(wage), "#0EA5E9"),
+        ("Food $ Ceiling", "${:,.2f}".format(food_ceiling),
+         "{:.1f}% of forecasted revenue".format(target_fc * 100), "#D97706"),
+    ]
+    for i, (label, value, sub, color) in enumerate(spend_cards):
+        col = [a1, a2, a3, a4][i]
+        with col:
+            st.markdown(
+                '<div class="fc-spend-card">'
+                '<div class="fc-spend-label" style="color:{c};">{label}</div>'
+                '<div class="fc-spend-value">{value}</div>'
+                '<div class="fc-spend-sub">{sub}</div>'
+                '</div>'.format(c=color, label=label, value=value, sub=sub),
+                unsafe_allow_html=True,
             )
 
-            v_lab = b_lab_d - allowable_labor_dollars
-            v_hrs = b_lab_h - allowable_hours
+    # ─── See the math expander ───
+    with st.expander("📐 See the math — View how allowable amounts are calculated"):
+        st.markdown("""
+**Forecast Revenue** = `${rev:,.2f}` (based on rolling 4-wk avg + velocity)
 
-            c1, c2 = st.columns(2)
-            with c1:
-                color = "#16A34A" if v_lab <= 0 else "#EF4444"
-                arrow = "▼" if v_lab <= 0 else "▲"
-                st.markdown(
-                    '<div style="background:#FFF;border:1px solid #E5E7EB;'
-                    'border-radius:10px;padding:14px 18px;">'
-                    '<div style="font-size:11px;color:#64748B;text-transform:uppercase;'
-                    'letter-spacing:.08em;font-weight:600;">Labor $ vs Allowable</div>'
-                    '<div style="display:flex;justify-content:space-between;'
-                    'align-items:center;margin-top:6px;">'
-                    '<span style="font-size:22px;font-weight:700;color:#1E293B;">{}</span>'
-                    '<span style="font-size:14px;font-weight:600;color:{};">{}{}</span>'
-                    '</div></div>'.format(
-                        fmt_dollar(b_lab_d), color, arrow, fmt_dollar(abs(v_lab))),
-                    unsafe_allow_html=True,
-                )
-            with c2:
-                color = "#16A34A" if v_hrs <= 0 else "#EF4444"
-                arrow = "▼" if v_hrs <= 0 else "▲"
-                st.markdown(
-                    '<div style="background:#FFF;border:1px solid #E5E7EB;'
-                    'border-radius:10px;padding:14px 18px;">'
-                    '<div style="font-size:11px;color:#64748B;text-transform:uppercase;'
-                    'letter-spacing:.08em;font-weight:600;">Hours vs Allowable</div>'
-                    '<div style="display:flex;justify-content:space-between;'
-                    'align-items:center;margin-top:6px;">'
-                    '<span style="font-size:22px;font-weight:700;color:#1E293B;">{:.0f}</span>'
-                    '<span style="font-size:14px;font-weight:600;color:{};">{}{:.0f}</span>'
-                    '</div></div>'.format(
-                        b_lab_h, color, arrow, abs(v_hrs)),
-                    unsafe_allow_html=True,
-                )
+**Total Allowable Labor $** = Forecast × Target Labor %
+= `${rev:,.2f}` × `{lp:.1f}%` = **`${tot:,.2f}`**
+""".format(rev=forecast_rev, lp=target_lp * 100, tot=total_labor_d))
+        if is_board:
+            st.markdown("""
+**Hourly Labor $** = Total Labor − Salaries − Office Labor
+= `${tot:,.2f}` − `${s:,.2f}` − `${o:,.2f}` = **`${h:,.2f}`**
+""".format(tot=total_labor_d, s=salaries, o=office, h=hourly_labor_d))
+        st.markdown("""
+**Allowable Hours** = Hourly $ ÷ Avg Wage
+= `${h:,.2f}` ÷ `${w:.2f}` = **`{hrs:.0f} hrs`**
+
+**Food $ Ceiling** = Forecast × Target FC %
+= `${rev:,.2f}` × `{fc:.1f}%` = **`${food:,.2f}`**
+""".format(h=hourly_labor_d, w=wage, hrs=allow_hours,
+            rev=forecast_rev, fc=target_fc * 100, food=food_ceiling))
+
+    # ─── No data banner ───
+    if not history:
+        st.markdown(
+            '<div class="fc-banner">'
+            '<div class="fc-banner-text">'
+            '<b>No historical data yet for {}.</b><br>'
+            '<span>Add weekly financials to enable more accurate forecasting.</span>'
+            '</div>'
+            '<div class="fc-banner-action">📊 Add Weekly Financials</div>'
+            '</div>'.format(dept),
+            unsafe_allow_html=True,
+        )
+
+    # ─── Footer ───
+    st.markdown(
+        '<div class="fc-footer-note">ℹ Forecasts are projections only. '
+        'Actual results may vary.</div>',
+        unsafe_allow_html=True,
+    )

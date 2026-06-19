@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from config import DEPARTMENTS
-from styles import page_header, dash_kpi_card, dash_chart_start, dash_chart_end, dash_section_header
+from styles import page_header, dash_kpi_card, dash_chart_start, dash_chart_end, dash_section_header, hero_header
 import db
 
 
@@ -104,7 +104,7 @@ def render(conn, user):
     """Main inventory page."""
     _init_inventory_tables(conn)
 
-    page_header("Inventory Management", "Track stock, waste, and purchase orders")
+    hero_header("Inventory Management", "Track stock, waste, and purchase orders")
 
     sub = st.session_state.get("current_subsection", "Inventory")
 

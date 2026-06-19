@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from config import DEPARTMENTS
-from styles import page_header, dash_kpi_card, dash_section_header
+from styles import page_header, dash_kpi_card, dash_section_header, hero_header
 import db
 
 
@@ -50,7 +50,7 @@ _POSITIONS = ["Grill", "Prep", "Service", "Cashier", "Dish", "Catering", "Genera
 def render(conn, user):
     """Main scheduling page."""
     _init_schedule_tables(conn)
-    page_header("Employee Scheduling", "Weekly shift planning and labor tracking")
+    hero_header("Employee Scheduling", "Weekly shift planning and labor tracking")
 
     dept = st.selectbox("Department", DEPARTMENTS, key="sched_dept")
 

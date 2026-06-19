@@ -1,21 +1,165 @@
 """
 All database connection and CRUD functions.
 Single source of truth for data access.
+
+Backends:
+    - SQLite (local dev, default)
+    - Postgres / Supabase (cloud) when DATABASE_URL env var is set OR
+      st.secrets["DATABASE_URL"] exists
 """
 
 import sqlite3
 import os
+import re
 from datetime import date, datetime, timedelta
 from typing import Optional, List
 
 from config import DB_PATH
 
 
+def _get_database_url():
+    """Resolve DATABASE_URL from env var first, then Streamlit secrets."""
+    url = os.environ.get("DATABASE_URL")
+    if url:
+        return url
+    try:
+        import streamlit as _st
+        if "DATABASE_URL" in _st.secrets:
+            return _st.secrets["DATABASE_URL"]
+    except Exception:
+        pass
+    return None
+
+
+# ─────────────────────── Postgres compat wrapper ───────────────────────
+# Lets the existing 2,000+ lines of SQLite-style code keep working with
+# psycopg2 by translating `?` placeholders → `%s` and wrapping rows so
+# `row[0]` and `row["col"]` both work.
+
+class _PgRow(tuple):
+    """Tuple-like row that also supports row['col_name'] access."""
+    def __new__(cls, values, columns):
+        obj = super().__new__(cls, values)
+        obj._cols = {c: i for i, c in enumerate(columns)}
+        return obj
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            return tuple.__getitem__(self, self._cols[key])
+        return tuple.__getitem__(self, key)
+
+    def keys(self):
+        return list(self._cols.keys())
+
+
+class _PgCursor:
+    """Wrap psycopg2 cursor to behave like sqlite3 cursor."""
+    def __init__(self, raw):
+        self._raw = raw
+
+    @staticmethod
+    def _translate(sql):
+        # SQLite `?` → Postgres `%s` (skip ones inside string literals)
+        out, in_str, quote = [], False, ""
+        for ch in sql:
+            if in_str:
+                out.append(ch)
+                if ch == quote:
+                    in_str = False
+            elif ch in "'\"":
+                in_str, quote = True, ch
+                out.append(ch)
+            elif ch == "?":
+                out.append("%s")
+            else:
+                out.append(ch)
+        s = "".join(out)
+        # SQLite-only constructs → Postgres equivalents
+        s = re.sub(r"\bINSERT\s+OR\s+REPLACE\s+INTO\b", "INSERT INTO", s, flags=re.I)
+        s = re.sub(r"\bINSERT\s+OR\s+IGNORE\s+INTO\b", "INSERT INTO", s, flags=re.I)
+        # SQLite datetime('now','localtime') / datetime('now')  → Postgres now()
+        s = re.sub(r"datetime\(\s*'now'(\s*,\s*'localtime')?\s*\)", "now()", s, flags=re.I)
+        return s
+
+    def execute(self, sql, params=()):
+        self._raw.execute(self._translate(sql), tuple(params) if params else None)
+        return self
+
+    def executemany(self, sql, seq_of_params):
+        self._raw.executemany(self._translate(sql), seq_of_params)
+        return self
+
+    def _wrap_rows(self, rows):
+        if not rows:
+            return rows
+        cols = [d[0] for d in self._raw.description]
+        return [_PgRow(r, cols) for r in rows]
+
+    def fetchone(self):
+        r = self._raw.fetchone()
+        if r is None:
+            return None
+        cols = [d[0] for d in self._raw.description]
+        return _PgRow(r, cols)
+
+    def fetchall(self):
+        return self._wrap_rows(self._raw.fetchall())
+
+    @property
+    def lastrowid(self):
+        # psycopg2 doesn't expose lastrowid universally; callers needing
+        # the generated id should use RETURNING id and fetchone().
+        return None
+
+    @property
+    def rowcount(self):
+        return self._raw.rowcount
+
+    def close(self):
+        self._raw.close()
+
+
+class _PgConnection:
+    """Wrap a psycopg2 connection to behave like sqlite3 connection."""
+    def __init__(self, raw):
+        self._raw = raw
+        self._raw.autocommit = True  # match sqlite default behavior
+
+    def cursor(self):
+        return _PgCursor(self._raw.cursor())
+
+    def execute(self, sql, params=()):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def executemany(self, sql, seq_of_params):
+        cur = self.cursor()
+        cur.executemany(sql, seq_of_params)
+        return cur
+
+    def commit(self):
+        self._raw.commit()
+
+    def rollback(self):
+        self._raw.rollback()
+
+    def close(self):
+        self._raw.close()
+
+
 # ─────────────────────── Connection ───────────────────────
 
 
 def get_conn():
-    """Get a SQLite connection. Auto-initializes if DB missing."""
+    """Get a database connection. Postgres if DATABASE_URL is set, else SQLite."""
+    pg_url = _get_database_url()
+    if pg_url:
+        import psycopg2
+        # On Postgres, all schema is managed by migration/supabase_schema.sql
+        # run once in the Supabase SQL editor. No inline migrations here.
+        return _PgConnection(psycopg2.connect(pg_url))
+
     if not os.path.exists(DB_PATH):
         from init_db import init_database
         init_database()

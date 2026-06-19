@@ -412,7 +412,16 @@ def main():
             return
 
     # ─── Auto-import: Gmail PDFs → database (Odyssey + CTUIT) ───
-    if "gmail_checked" not in st.session_state:
+    # Skip on Streamlit Cloud (where Postgres is in use) — the filesystem is
+    # ephemeral, downloaded PDFs would be wiped on the next restart, and the
+    # Gmail API calls add 5–30s to every cold-start. Locally with SQLite, run
+    # it as before.
+    _is_cloud = bool(os.environ.get("DATABASE_URL"))
+    try:
+        _is_cloud = _is_cloud or ("DATABASE_URL" in st.secrets)
+    except Exception:
+        pass
+    if not _is_cloud and "gmail_checked" not in st.session_state:
         st.session_state.gmail_checked = True
         uname = user["username"] if user else "system"
         try:

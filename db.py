@@ -151,14 +151,43 @@ class _PgConnection:
 # ─────────────────────── Connection ───────────────────────
 
 
-def get_conn():
-    """Get a database connection. Postgres if DATABASE_URL is set, else SQLite."""
+def _make_conn():
+    """Open a new DB connection (uncached). Internal."""
     pg_url = _get_database_url()
     if pg_url:
         import psycopg2
         # On Postgres, all schema is managed by migration/supabase_schema.sql
         # run once in the Supabase SQL editor. No inline migrations here.
         return _PgConnection(psycopg2.connect(pg_url))
+    return None  # signal to fall through to SQLite path
+
+
+def get_conn():
+    """Get a database connection. Postgres if DATABASE_URL is set, else SQLite.
+
+    On Streamlit, the Postgres connection is cached as a singleton per session
+    (st.cache_resource) so we don't pay TCP+TLS setup on every page rerun.
+    """
+    pg_url = _get_database_url()
+    if pg_url:
+        try:
+            import streamlit as _st
+
+            @_st.cache_resource(show_spinner=False)
+            def _cached_pg():
+                return _make_conn()
+
+            conn = _cached_pg()
+            # Sanity-check: if the cached conn was closed, drop the cache and reconnect
+            try:
+                conn._raw.cursor().execute("SELECT 1")
+            except Exception:
+                _cached_pg.clear()
+                conn = _cached_pg()
+            return conn
+        except Exception:
+            # Streamlit not available (e.g. running migration script) — open fresh
+            return _make_conn()
 
     if not os.path.exists(DB_PATH):
         from init_db import init_database

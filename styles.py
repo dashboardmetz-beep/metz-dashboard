@@ -1699,95 +1699,141 @@ body { margin: 0 !important; padding: 0 !important; }
     .ms-sub { display: none; }
 }
 
-/* ─── INLINE PRIMARY NAV (plain text tabs inside dark header) ─── */
-.ms-primary-nav {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
+/* ═══════════════════════════════════════════════════════════════════════
+   PRIMARY NAV — Streamlit buttons styled as text tabs on dark navy bar.
+   Selectors use html+body+stApp prefix for maximum specificity to beat
+   any global Streamlit pill-button overrides.
+   ═══════════════════════════════════════════════════════════════════════ */
+html body div.stApp [data-testid="stHorizontalBlock"]:has([class*="st-key-topnav_"]) {
+    background: #0B1628 !important;
+    gap: 0 !important;
+    padding: 0 20px !important;
+    width: 100vw !important;
+    margin-left: calc(-50vw + 50%) !important;
+    box-sizing: border-box !important;
+    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+    align-items: stretch !important;
 }
-.ms-pnav-link {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 22px 16px;
+html body div.stApp [data-testid="stHorizontalBlock"]:has([class*="st-key-topnav_"]) [data-testid="stColumn"],
+html body div.stApp [data-testid="stHorizontalBlock"]:has([class*="st-key-topnav_"]) > div {
+    padding: 0 !important;
+    background: transparent !important;
+}
+html body div.stApp [class*="st-key-topnav_"] {
+    background: transparent !important;
+}
+html body div.stApp [class*="st-key-topnav_"] .stButton {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+}
+html body div.stApp [class*="st-key-topnav_"] .stButton > button,
+html body div.stApp [class*="st-key-topnav_"] .stButton button[kind],
+html body div.stApp [class*="st-key-topnav_"] .stButton button[data-testid] {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
     color: rgba(255,255,255,0.65) !important;
-    font-family: 'Inter', sans-serif;
-    font-size: 13.5px;
-    font-weight: 500;
-    letter-spacing: -0.005em;
-    text-decoration: none !important;
-    transition: color .12s ease;
-    white-space: nowrap;
+    -webkit-text-fill-color: rgba(255,255,255,0.65) !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.005em !important;
+    padding: 16px 8px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    text-transform: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    width: 100% !important;
+    transform: none !important;
 }
-.ms-pnav-link:link, .ms-pnav-link:visited, .ms-pnav-link:hover,
-.ms-pnav-link:focus, .ms-pnav-link:active {
-    text-decoration: none !important;
+html body div.stApp [class*="st-key-topnav_"] .stButton > button:hover,
+html body div.stApp [class*="st-key-topnav_"] .stButton button[kind]:hover {
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border-bottom-color: rgba(201,163,78,0.35) !important;
+    transform: none !important;
 }
-.ms-pnav-link:hover { color: #FFFFFF !important; }
-.ms-pnav-link.active {
+html body div.stApp [class*="st-key-topnav_"] .stButton > button[kind="primary"],
+html body div.stApp [class*="st-key-topnav_"] .stButton > button[data-testid="stBaseButton-primary"] {
+    background: transparent !important;
+    background-color: transparent !important;
     color: #C9A34E !important;
-    font-weight: 600;
-}
-.ms-pnav-link.active::after {
-    content: "";
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 0;
-    height: 2px;
-    background: #C9A34E;
-    border-radius: 1px;
-}
-.ms-pnav-badge {
-    background: #DC2626;
-    color: #FFFFFF;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 9px;
-    line-height: 1.5;
-    min-width: 18px;
-    text-align: center;
+    -webkit-text-fill-color: #C9A34E !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-bottom: 2px solid #C9A34E !important;
 }
 
-/* ─── SECONDARY SUBNAV ROW — pure anchor links (slim white) ─── */
-.ms-subnav-row {
-    width: 100vw;
-    margin-left: calc(-50vw + 50%);
-    background: #FFFFFF;
-    padding: 0 28px;
-    box-sizing: border-box;
-    border-bottom: 1px solid #E5E7EB;
-    display: flex;
-    gap: 0;
-    align-items: stretch;
-    overflow-x: auto;
+/* ═══════════════════════════════════════════════════════════════════════
+   SECONDARY SUBNAV — slim white row of buttons with gold underline.
+   ═══════════════════════════════════════════════════════════════════════ */
+html body div.stApp [data-testid="stHorizontalBlock"]:has([class*="st-key-subnav_"]) {
+    background: #FFFFFF !important;
+    gap: 0 !important;
+    padding: 0 28px !important;
+    width: 100vw !important;
+    margin-left: calc(-50vw + 50%) !important;
+    box-sizing: border-box !important;
+    border-bottom: 1px solid #E5E7EB !important;
+    align-items: stretch !important;
 }
-.ms-subnav-link {
-    flex: 1 1 0;
-    text-align: center;
-    padding: 13px 18px;
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
+html body div.stApp [data-testid="stHorizontalBlock"]:has([class*="st-key-subnav_"]) [data-testid="stColumn"] {
+    padding: 0 !important;
+    background: transparent !important;
+}
+html body div.stApp [class*="st-key-subnav_"] .stButton { margin: 0 !important; padding: 0 !important; }
+html body div.stApp [class*="st-key-subnav_"] .stButton > button,
+html body div.stApp [class*="st-key-subnav_"] .stButton button[kind] {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
     color: #6B7280 !important;
-    text-decoration: none !important;
-    border-bottom: 2px solid transparent;
-    letter-spacing: -0.005em;
-    cursor: pointer;
-    transition: color .12s ease, border-color .12s ease;
+    -webkit-text-fill-color: #6B7280 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.005em !important;
+    padding: 11px 16px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    text-transform: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    width: 100% !important;
+    transform: none !important;
 }
-.ms-subnav-link:link, .ms-subnav-link:visited, .ms-subnav-link:hover,
-.ms-subnav-link:focus, .ms-subnav-link:active {
-    text-decoration: none !important;
+html body div.stApp [class*="st-key-subnav_"] .stButton > button:hover {
+    color: #101827 !important;
+    -webkit-text-fill-color: #101827 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    transform: none !important;
 }
-.ms-subnav-link:hover { color: #101827 !important; }
-.ms-subnav-link.active {
+html body div.stApp [class*="st-key-subnav_"] .stButton > button[kind="primary"],
+html body div.stApp [class*="st-key-subnav_"] .stButton > button[data-testid="stBaseButton-primary"] {
+    background: transparent !important;
+    background-color: transparent !important;
     color: #0B1628 !important;
-    font-weight: 600;
-    border-bottom-color: #C9A34E;
+    -webkit-text-fill-color: #0B1628 !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-bottom: 2px solid #C9A34E !important;
 }
 
 
@@ -1893,12 +1939,12 @@ html body .stApp [data-testid="stMain"] .st-key-ms_select_date .stButton > butto
 }
 /* Header rows span full width — no lateral padding */
 [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"]:has(.metz-shell),
-[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"]:has(.ms-subnav-row) {
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"]:has([class*="st-key-topnav_"]),
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"]:has([class*="st-key-subnav_"]) {
     padding: 0 !important;
 }
-/* Hide the empty markdown stElementContainer wrapping nav rows from contributing extra gap */
-[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.metz-shell),
-[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.ms-subnav-row) {
+/* Hide the empty markdown stElementContainer wrapping the dark shell */
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.metz-shell) {
     margin: 0 !important;
     padding: 0 !important;
 }

@@ -4542,7 +4542,7 @@ div[data-testid="stAlert"] {
     background: #FFFFFF;
     border: 1px solid #E4E7EC;
     border-radius: 12px;
-    padding: 48px 44px 40px;
+    padding: 28px 44px 32px;
     max-width: 420px;
     width: 100%;
     box-shadow: 0 24px 48px rgba(15, 23, 42, 0.06);
@@ -4552,7 +4552,7 @@ div[data-testid="stAlert"] {
     display: block;
     height: 3px;
     background: linear-gradient(90deg, #C7A462 0%, #E8D5A8 50%, #C7A462 100%);
-    margin: -48px -44px 32px -44px;
+    margin: -28px -44px 18px -44px;
     border-radius: 12px 12px 0 0;
 }
 .metz-login-eyebrow {

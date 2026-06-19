@@ -3,6 +3,7 @@ Metz Operations Platform — Main Router
 Login, grouped navigation with sub-sections, page dispatch.
 """
 
+import os
 import streamlit as st
 from auth import login_page, render_user_sidebar, can_access_imports
 from config import APP_NAME, PAGE_ICON, PLATFORM_TITLE

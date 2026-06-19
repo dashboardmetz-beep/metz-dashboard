@@ -292,37 +292,12 @@ def _render_top_bar(user):
     initials = "".join([p[0] for p in name.split()[:2]]).upper() or "A"
     active_tab = _get_active_tab(page, sub)
 
-    # Build inline primary nav (anchor links inside dark header)
-    primary_html = '<nav class="ms-primary-nav">'
-    for tab_name, _sub, _ico, children in _NAV_TABS:
-        if children:
-            fc = children[0]
-            fc_page = fc[1] if len(fc) == 3 else fc[0]
-            fc_sub = fc[2] if len(fc) == 3 else fc[1]
-        else:
-            fc_page, fc_sub = tab_name, None
-        is_active = tab_name == active_tab
-        active_cls = " active" if is_active else ""
-        badge_html = (
-            '<span class="ms-pnav-badge">3</span>'
-            if tab_name == "Alerts" else ""
-        )
-        href = "?nav_page={}&nav_sub={}&nav_intent={}".format(
-            _qp(fc_page or ""), _qp(fc_sub or ""), _qp(tab_name),
-        )
-        primary_html += (
-            '<a href="{href}" target="_top" class="ms-pnav-link{active}">'
-            '{name}{badge}</a>'
-        ).format(
-            href=href, active=active_cls, name=tab_name, badge=badge_html,
-        )
-    primary_html += '</nav>'
-
-    # ─── DARK HEADER (brand + primary nav + search + admin) ───
+    # ─── DARK HEADER (brand + search + admin) — primary nav rendered as
+    #     Streamlit buttons in the next row, styled to look inline. Anchor
+    #     links don't work reliably on Streamlit Cloud due to URL prefixing.
     st.markdown(
         '<div class="metz-shell">'
         '<div class="ms-brand">{logo}</div>'
-        '{primary}'
         '<div class="ms-search">'
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
         'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
@@ -345,13 +320,32 @@ def _render_top_bar(user):
         '<polyline points="6 9 12 15 18 9"/></svg>'
         '</div>'
         '</div>'.format(
-            logo=_LAUREL_LOGO_SVG, primary=primary_html,
-            n=name, r=role.title(), i=initials,
+            logo=_LAUREL_LOGO_SVG, n=name, r=role.title(), i=initials,
         ),
         unsafe_allow_html=True,
     )
 
-    # ─── SECONDARY NAV (anchor links, only when active tab has multiple children) ───
+    # ─── PRIMARY NAV — Streamlit buttons (websocket-driven, fast on Cloud) ───
+    nav_cols = st.columns(len(_NAV_TABS))
+    for i, (tab_name, _sub_label, _ico, children) in enumerate(_NAV_TABS):
+        with nav_cols[i]:
+            if children:
+                fc = children[0]
+                fc_page = fc[1] if len(fc) == 3 else fc[0]
+                fc_sub = fc[2] if len(fc) == 3 else fc[1]
+            else:
+                fc_page, fc_sub = tab_name, None
+            is_active = tab_name == active_tab
+            label = tab_name + ("  3" if tab_name == "Alerts" else "")
+            btn_type = "primary" if is_active else "secondary"
+            if st.button(label, key="topnav_{}".format(tab_name.lower()),
+                         use_container_width=True, type=btn_type):
+                st.session_state.current_page = fc_page
+                st.session_state.current_subsection = fc_sub
+                st.session_state.active_tab_intent = tab_name
+                st.rerun()
+
+    # ─── SECONDARY NAV — Streamlit buttons (slim white row when active tab has children) ───
     active_tab_children = []
     for tab_name, _, _, children in _NAV_TABS:
         if tab_name == active_tab:
@@ -359,8 +353,8 @@ def _render_top_bar(user):
             break
 
     if len(active_tab_children) > 1:
-        sub_html = '<div class="ms-subnav-row">'
-        for child in active_tab_children:
+        sub_cols = st.columns(len(active_tab_children))
+        for i, child in enumerate(active_tab_children):
             if len(child) == 3:
                 label_full, child_page, child_sub = child
             else:
@@ -370,15 +364,17 @@ def _render_top_bar(user):
                 child_page == page
                 and (child_sub is None or child_sub == sub)
             )
-            href = "?nav_page={}&nav_sub={}&nav_intent={}".format(
-                _qp(child_page or ""), _qp(child_sub or ""), _qp(active_tab),
-            )
-            cls = "ms-subnav-link active" if is_active_child else "ms-subnav-link"
-            sub_html += '<a href="{h}" target="_top" class="{c}">{l}</a>'.format(
-                h=href, c=cls, l=label_full,
-            )
-        sub_html += '</div>'
-        st.markdown(sub_html, unsafe_allow_html=True)
+            with sub_cols[i]:
+                btn_key = "subnav_{}".format(
+                    label_full.lower().replace(" ", "_").replace("&", "and")
+                )
+                btn_type = "primary" if is_active_child else "secondary"
+                if st.button(label_full, key=btn_key,
+                             use_container_width=True, type=btn_type):
+                    st.session_state.current_page = child_page
+                    st.session_state.current_subsection = child_sub
+                    st.session_state.active_tab_intent = active_tab
+                    st.rerun()
 
 def main():
     conn = db.get_conn()
